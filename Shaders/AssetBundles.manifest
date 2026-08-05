@@ -1,0 +1,12 @@
+ManifestFileVersion: 0
+UnityVersion: 6000.4.1f1
+CRC: 2150168995
+HashAppended: 0
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: unifiedraytracing
+      Dependencies: {}
+    Info_1:
+      Name: textshader
+      Dependencies: {}

@@ -1,0 +1,42 @@
+ManifestFileVersion: 0
+UnityVersion: 6000.4.1f1
+CRC: 986096464
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: fa52de4a38b9ae793e579305096a3e7b
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: db1571c5055d93407c8f9b96229eba91
+  IncrementalBuildHash:
+    serializedVersion: 2
+    Hash: 857e43ebb565d486090180983bb26697
+HashAppended: 0
+ClassTypes:
+- Class: 21
+  Script: {instanceID: 0}
+- Class: 28
+  Script: {instanceID: 0}
+- Class: 48
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/Shaders/TMP_Bitmap-Mobile.shader
+- Assets/Shaders/TMP_Bitmap-Custom-Atlas.shader
+- Assets/Shaders/TMP_SDF-URP Lit.shadergraph
+- Assets/Shaders/TMP_Bitmap.shader
+- Assets/Shaders/TMP_SDF-Mobile Masking.shader
+- Assets/Shaders/TMP_SDF-URP Unlit.shadergraph
+- Assets/Shaders/TextShader.shader
+- Assets/Shaders/TMP_SDF-Mobile.shader
+- Assets/Shaders/TMP_SDF Overlay.shader
+- Assets/Shaders/TMP_SDF-HDRP LIT.shadergraph
+- Assets/Shaders/TMP_SDF-Mobile Overlay.shader
+- Assets/Shaders/TMP_SDF-Surface.shader
+- Assets/Shaders/TMP_SDF-Mobile-2-Pass.shader
+- Assets/Shaders/TMP_SDF-Mobile SSD.shader
+- Assets/Shaders/TMP_Sprite.shader
+- Assets/Shaders/TMP_SDF SSD.shader
+- Assets/Shaders/TMP_SDF-Surface-Mobile.shader
+- Assets/Shaders/TMP_SDF-HDRP UNLIT.shadergraph
+Dependencies: []

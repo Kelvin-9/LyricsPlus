@@ -1,0 +1,29 @@
+{
+  "ColoredLyrics_ModSettings_Name": {
+    "en": "Colored Lyrics"
+  },
+  "ColoredLyrics_ModSettings_Header": {
+    "en": "Top Text"
+  },
+  "ColoredLyrics_ModSettings_Enable": {
+    "en": "Enabled"
+  },
+  "ColoredLyrics_ModSettings_FaceColor": {
+    "en": "Face Color"
+  },
+  "ColoredLyrics_ModSettings_OutlineWidth": {
+    "en": "Outline Width"
+  },
+  "ColoredLyrics_ModSettings_OutlineColor": {
+    "en": "Outline Color"
+  },
+  "ColoredLyrics_ModSettings_UnderlayColor": {
+    "en": "Underlay Color"
+  },
+  "ColoredLyrics_QuickSettings_Header": {
+    "en": "Embed Lyric Material"
+  },
+  "ColoredLyrics_ModSettings_Apply": {
+    "en": "Apply"
+  }
+}
