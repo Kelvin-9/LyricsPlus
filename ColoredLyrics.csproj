@@ -17,13 +17,19 @@
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\BepInEx\core\BepInEx.dll</HintPath>
     </Reference>
     <Reference Include="SpinCore">
-      <HintPath>..\..\..\..\AppData\Roaming\SRXD Mod Manager\data\BepInEx\plugins\e175438534a4f36f149d7abfd21ee39f69752a3f8159ae999fe869aaa5318579\SpinCore.dll</HintPath>
+      <HintPath>C:\Users\kelvi\AppData\Roaming\SRXD Mod Manager\data\BepInEx\plugins\e175438534a4f36f149d7abfd21ee39f69752a3f8159ae999fe869aaa5318579\SpinCore.dll</HintPath>
     </Reference>
     <Reference Include="SSD.Game">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\SSD.Game.dll</HintPath>
     </Reference>
     <Reference Include="SSD.Types">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\SSD.Types.dll</HintPath>
+    </Reference>
+    <Reference Include="SSD.Utility">
+      <HintPath>..\..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\SSD.Utility.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>..\..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\Unity.InputSystem.dll</HintPath>
     </Reference>
     <Reference Include="Unity.TextMeshPro">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\Unity.TextMeshPro.dll</HintPath>
@@ -37,8 +43,17 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>..\..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.InputModule">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\UnityEngine.InputModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.Physics2DModule">
+      <HintPath>..\..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\UnityEngine.Physics2DModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>..\..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\UnityEngine.UI.dll</HintPath>
@@ -61,5 +76,9 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
+  
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="set gameDirectory=&quot;C:\Users\kelvi\AppData\Roaming\SRXD Mod Manager\data\BepInEx\plugins&quot;&#xA;&#xA;if exist %25gameDirectory%25 (&#xA;    copy /y &quot;$(TargetDir)$(TargetFileName)&quot; %25gameDirectory%25&#xA;) else (&#xA;    ECHO &quot;Destination folder not found, skipping copy.&quot;&#xA;)" />
+  </Target>
 
 </Project>

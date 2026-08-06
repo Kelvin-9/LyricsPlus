@@ -13,7 +13,9 @@ namespace ColoredLyrics
     {
         public static PlayableTrackData? currentTrack;
         public static IMultiAssetSaveFile? currentFile;
-        static Dictionary<string, object> shaderData = new();
+        private static Dictionary<string, object> shaderData = new();
+        internal static LyricConfig? lyricConfig = null;
+        internal static bool hasEmbeddedData => shaderData.Count > 0 || lyricConfig != null;
 
         public static void Load(PlayableTrackData playableTrackData)
         {
@@ -42,11 +44,19 @@ namespace ColoredLyrics
             currentFile = file;
 
             // Get embed data
-            Dictionary<string, object>? shaderParams = TryGetLyricDataFromTrack(file, diffStr);
+            LoadShaderParams(file);
+            LoadLyricConfig(file);
+        }
+
+        // SHADER EMBED PARAMS
+        const string SHADER_KEY = "LyricShaderParams";
+        static void LoadShaderParams(IMultiAssetSaveFile file)
+        {
+            Dictionary<string, object>? shaderParams = TryGetShaderParamsFromTrack(file);
             if (shaderParams != null)
             {
-                Debug.Log($"<{file.FileNameNoExtension}> Loaded {shaderData.Count} shader params");
                 shaderData = shaderParams;
+                Debug.Log($"<{file.FileNameNoExtension}> Loaded {shaderData.Count} shader params");
             }
             else
             {
@@ -56,17 +66,10 @@ namespace ColoredLyrics
             }
         }
 
-        static Dictionary<string, object>? TryGetLyricDataFromTrack(IMultiAssetSaveFile file, string diff)
+        static Dictionary<string, object>? TryGetShaderParamsFromTrack(IMultiAssetSaveFile file)
         {
-            if (CustomChartHelper.TryGetCustomData(file, "ColoredLyrics_" + diff, out LyricShaderEmbedData shaderDataDiff))
+            if (CustomChartHelper.TryGetCustomData(file, SHADER_KEY, out LyricShaderEmbedData shaderDataGen))
             {
-                Debug.Log($"<{file.FileNameNoExtension}> Getting shader data for difficulty {diff}");
-                return shaderDataDiff.ToDictionary();
-            }
-
-            if (CustomChartHelper.TryGetCustomData(file, "ColoredLyrics", out LyricShaderEmbedData shaderDataGen))
-            {
-                Debug.Log($"<{file.FileNameNoExtension}> Getting shader data");
                 return shaderDataGen.ToDictionary();
             }
 
@@ -77,26 +80,54 @@ namespace ColoredLyrics
         {
             if (file == null)
             {
-                Debug.Log("NO FILE");
                 return;
             }
             if (data.parameters == null)
             {
-                Debug.Log("NO DATA");
                 return;
             }
 
-            //Debug.Log($"<{file.FileNameNoExtension}> Trying to set shader params");
-            CustomChartHelper.SetCustomData(file, "ColoredLyrics", data, save: true);
+            CustomChartHelper.SetCustomData(file, SHADER_KEY, data, save: true);
             shaderData = data.ToDictionary();
 
             Util.ApplyShaderParameter(matMap.Values.ToList(), shaderData);
         }
 
+        // CHART EMBED CONFIGS
+        const string CONFIG_KEY = "LyricConfig";
+        static void LoadLyricConfig(IMultiAssetSaveFile file)
+        {
+            lyricConfig = TryGetLyricConfigFromTrack(file, currentTrack?.Difficulty.ToString() ?? "");
+        }
+
+        static LyricConfig? TryGetLyricConfigFromTrack(IMultiAssetSaveFile file, string diff)
+        {
+            if (CustomChartHelper.TryGetCustomData(file, CONFIG_KEY, out LyricConfig config))
+            {
+                return config;
+            }
+
+            return null;
+        }
+
+        internal static void SetLyricConfigForTrack(IMultiAssetSaveFile? file, LyricConfig config)
+        {
+            if (file == null)
+            {
+                return;
+            }
+
+            Debug.Log($"<{file.FileNameNoExtension}> Saving config: {config}");
+
+            CustomChartHelper.SetCustomData(file, CONFIG_KEY, config, save: true);
+            lyricConfig = config;
+        }
+
+        // GET CHART LYRIC MATERIAL
         static Dictionary<TMP_FontAsset, Material> matMap = new();
         public static Material? GetChartLyricMaterial(TMP_FontAsset font)
         {
-            if (shaderData.Count == 0)
+            if (!hasEmbeddedData)
             {
                 Debug.Log("Chart has no shader params");
                 return null;
@@ -104,6 +135,7 @@ namespace ColoredLyrics
 
             if (matMap.TryGetValue(font, out var mat)) return mat;
 
+            Debug.Log("Instantiating new material with chart embed data");
             mat = new Material(ModBase.textShader);
             mat.CopyPropertiesFromMaterial(font.material);
             matMap[font] = mat;
@@ -143,7 +175,7 @@ namespace ColoredLyrics
             for (int i = 0; i < parameters.Count; i++)
             {
                 object val = parameters[i].value;
-                switch (parameters[i].type) 
+                switch (parameters[i].type)
                 {
                     case ShaderParamType.Float:
                         val = Convert.ToSingle(parameters[i].value); // Cast double as float
@@ -156,14 +188,13 @@ namespace ColoredLyrics
                 }
 
                 dict.Add(parameters[i].key, val);
-                Debug.Log($"{parameters[i].key} {parameters[i].type} {val} {val.GetType()}");
             }
 
             return dict;
         }
 
-        public void AddParameter(string key, object val) 
-        { 
+        public void AddParameter(string key, object val)
+        {
             parameters.Add(new ShaderParameter(key, val));
         }
     }
@@ -206,16 +237,53 @@ namespace ColoredLyrics
     }
 
     // Using my own color struct because unity color doesn't serialize well
-    public struct Color(float r, float g, float b, float a = 1f)
+    public struct Color
     {
-        public float r = r;
-        public float g = g;
-        public float b = b;
-        public float a = a;
+        public float r;
+        public float g;
+        public float b;
+        public float a;
+
+        public Color()
+        {
+            r = 1; g = 1; b = 1; a = 1;
+        }
+
+        public Color(float r, float g, float b, float a = 1)
+        {
+            this.r = r;
+            this.g = g;
+            this.b = b;
+            this.a = a;
+        }
 
         public override string ToString()
         {
             return $"({r},{g},{b},{a})";
+        }
+    }
+
+    public struct LyricConfig
+    {
+        public Color defaultColor = new(1, 1, 1, 1);
+        public float fadeInRatio = 1;
+        public float fadeOutRatio = 1;
+
+        public LyricConfig()
+        {
+
+        }
+
+        public LyricConfig(Color defaultColor, float fadeInRatio, float fadeOutRatio)
+        {
+            this.defaultColor = defaultColor;
+            this.fadeInRatio = fadeInRatio;
+            this.fadeOutRatio = fadeOutRatio;
+        }
+
+        public override string ToString()
+        {
+            return $"\n___\nDefaultColor: {defaultColor}\nFadeIn: {fadeInRatio}\nFadeOut: {fadeOutRatio}\n___\n";
         }
     }
 }

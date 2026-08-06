@@ -22,7 +22,6 @@ namespace ColoredLyrics
 
         private readonly Harmony harmony = new(modGUID);
         internal static Shader textShader;
-        public static Color32 defaultColor = new(255, 255, 255, 255);
 
 
         void Awake()
@@ -40,15 +39,6 @@ namespace ColoredLyrics
 
         void Update()
         {
-            //! DEBUG !//
-            //if (UnityInput.Current.GetMouseButtonDown(1))
-            //{
-            //    LyricShaderEmbedData dummy = new();
-            //    dummy.AddParameter("_OutlineWidth", 0.4f);
-            //    dummy.AddParameter("_OutlineColor", new Color(0, 1, 1, 1));
-            //    TrackLyricDataManager.SetShaderParametersForTrack(TrackLyricDataManager.currentFile, dummy);
-            //}
-
             ConfigManager.quickModGroup?.Transform.SetAsLastSibling();
         }
 
@@ -82,6 +72,7 @@ namespace ColoredLyrics
                 return chartMat;
             }
 
+            if (ConfigManager.config.embeddedOnly) return null;
             if (defaultMatMap.TryGetValue(font, out var mat)) return mat;
 
             mat = new Material(textShader);
@@ -126,9 +117,9 @@ namespace ColoredLyrics
 
     public static class Util
     {
-        public static bool Equal(this Color32 col, Color32 other)
+        public static bool Equal(this Color32 col, Color32 other, bool ignoreAlpha = false)
         {
-            return col.r == other.r && col.g == other.g && col.b == other.b && col.a == other.a;
+            return col.r == other.r && col.g == other.g && col.b == other.b && (col.a == other.a || ignoreAlpha);
         }
 
         public static UnityEngine.Color ToUnityColor(this Color col)
@@ -139,6 +130,11 @@ namespace ColoredLyrics
         public static Color Convert(this UnityEngine.Color col)
         {
             return new Color(col.r, col.g, col.b, col.a);
+        }
+
+        public static byte Remap(this byte value, byte fromMin, byte fromMax, byte toMin, byte toMax)
+        {
+            return (byte)(toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin));
         }
 
         /// Flags for shader:
@@ -153,6 +149,7 @@ namespace ColoredLyrics
         
         public static void ApplyShaderParameter(this Material mat, string name, object value)
         {
+            Debug.Log($"HI {name}");
             if (value is float f)
             {
                 mat.SetFloat(name, f);

@@ -3,13 +3,25 @@
     "en": "Colored Lyrics"
   },
   "ColoredLyrics_ModSettings_Header": {
-    "en": "Top Text"
+    "en": "Colored Lyrics"
   },
   "ColoredLyrics_ModSettings_Enable": {
     "en": "Enabled"
   },
+  "ColoredLyrics_ModSettings_EmbeddedOnly": {
+    "en": "Embedded Parameters Only"
+  },
+  "ColoredLyrics_ModSettings_EmbeddedOnlyTooltip": {
+    "en": "When embedded lyrics Only is toggled off, charts with no embedded lyric parameters will use this default profile."
+  },
+  "ColoredLyrics_ModSettings_FaceSoftness": {
+    "en": "Softness"
+  },
   "ColoredLyrics_ModSettings_FaceColor": {
-    "en": "Face Color"
+    "en": "Tint"
+  },
+  "ColoredLyrics_ModSettings_FaceDilate": {
+    "en": "Dilate"
   },
   "ColoredLyrics_ModSettings_OutlineWidth": {
     "en": "Outline Width"
@@ -19,6 +31,15 @@
   },
   "ColoredLyrics_ModSettings_UnderlayColor": {
     "en": "Underlay Color"
+  },
+  "ColoredLyrics_ModSettings_DefaultColor": {
+    "en": "Default Color"
+  },
+  "ColoredLyrics_ModSettings_FadeInRatio": {
+    "en": "Fade In"
+  },
+  "ColoredLyrics_ModSettings_FadeOutRatio": {
+    "en": "Fade Out"
   },
   "ColoredLyrics_QuickSettings_Header": {
     "en": "Embed Lyric Material"
