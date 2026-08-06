@@ -17,35 +17,44 @@ namespace ColoredLyrics
         internal static LyricConfig? lyricConfig = null;
         internal static bool hasEmbeddedData => shaderData.Count > 0 || lyricConfig != null;
 
-        public static void Load(PlayableTrackData playableTrackData)
+        public static bool Load(PlayableTrackData playableTrackData)
         {
-            if (!ConfigManager.config.enableColoredLyrics) return;
-            if (playableTrackData.TrackDataList.Count == 0) return;
+            //if (!ConfigManager.config.enableColoredLyrics) return;
+            if (playableTrackData.TrackDataList.Count == 0) 
+                return false; 
 
             // Get track data
             TrackData track = playableTrackData.TrackDataList[0];
             string path = track.CustomFile?.FilePath ?? "";
             if (string.IsNullOrEmpty(path))
-                return;
+                return false;
 
             // Get file / directory
             string filename = Path.GetFileNameWithoutExtension(path);
             string directory = Directory.GetParent(path)?.FullName ?? "";
             if (string.IsNullOrEmpty(directory))
-                return;
+                return false;
 
             string diffStr = playableTrackData.Difficulty.ToString().ToUpper();
             var files = new List<IMultiAssetSaveFile>();
             playableTrackData.GetCustomFiles(files);
+            
             IMultiAssetSaveFile file = files.First();
+            if (file is null)
+                return false;
 
-            if (file is null) return;
             currentTrack = playableTrackData;
             currentFile = file;
+            if (ConfigManager.embedTargetLabel != null)
+            {
+                ConfigManager.embedTargetLabel.ExtraText = currentFile?.FileNameNoExtension;
+            }
 
             // Get embed data
             LoadShaderParams(file);
             LoadLyricConfig(file);
+
+            return true;
         }
 
         // SHADER EMBED PARAMS
@@ -57,10 +66,15 @@ namespace ColoredLyrics
             {
                 shaderData = shaderParams;
                 Debug.Log($"<{file.FileNameNoExtension}> Loaded {shaderData.Count} shader params");
+                foreach (var item in shaderParams)
+                {
+                    ConfigManager.syncUI.Sync(item.Key, item.Value);
+                }
             }
             else
             {
                 // Clear materials
+                ConfigManager.syncUI.Reset();
                 shaderData.Clear();
                 matMap.Clear();
             }
@@ -98,6 +112,20 @@ namespace ColoredLyrics
         static void LoadLyricConfig(IMultiAssetSaveFile file)
         {
             lyricConfig = TryGetLyricConfigFromTrack(file, currentTrack?.Difficulty.ToString() ?? "");
+
+            if (lyricConfig == null)
+            {
+                ConfigManager.syncUI.Reset();
+                return;
+            }
+
+            if (lyricConfig != null)
+            {
+                ConfigManager.syncUI.Sync("embedDefaultColor", lyricConfig?.defaultColor);
+                ConfigManager.syncUI.Sync("embedFadeIn", lyricConfig?.fadeInRatio);
+                ConfigManager.syncUI.Sync("embedFadeOut", lyricConfig?.fadeOutRatio);
+            }
+
         }
 
         static LyricConfig? TryGetLyricConfigFromTrack(IMultiAssetSaveFile file, string diff)
@@ -129,13 +157,11 @@ namespace ColoredLyrics
         {
             if (!hasEmbeddedData)
             {
-                Debug.Log("Chart has no shader params");
                 return null;
             }
 
             if (matMap.TryGetValue(font, out var mat)) return mat;
 
-            Debug.Log("Instantiating new material with chart embed data");
             mat = new Material(ModBase.textShader);
             mat.CopyPropertiesFromMaterial(font.material);
             matMap[font] = mat;

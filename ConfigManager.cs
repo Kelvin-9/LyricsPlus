@@ -305,6 +305,10 @@ namespace ColoredLyrics
         static UnityEngine.Color DEFAULT_EMBED_FACECOLOR = new(1, 1, 1, 1);
         static UnityEngine.Color DEFAULT_EMBED_OUTLINECOLOR = new(0, 0, 0, 1);
         static UnityEngine.Color DEFAULT_EMBED_COLOR = new(1, 1, 1, 1);
+        internal static CustomTextComponent? embedTargetLabel;
+
+        internal static SyncedUIStore syncUI = new();
+
         private static void CreateQuickModSettings()
         {
             UIHelper.RegisterGroupInQuickModSettings(panelTransform =>
@@ -317,6 +321,12 @@ namespace ColoredLyrics
                     "ColoredLyrics_QuickSettings_Header",
                     false
                 );
+                embedTargetLabel = UIHelper.CreateLabel(
+                    group.Transform,
+                    "EmbedTargetLabel",
+                    "____"
+                );
+                embedTargetLabel.ExtraText = TrackLyricDataManager.currentTrack?.Name;
 
                 // Face
                 var faceColorGroup = UIHelper.CreateGroup(group.Transform, "FaceColorGroup");
@@ -326,7 +336,7 @@ namespace ColoredLyrics
                     "EmbedFaceColorLabel",
                     "ColoredLyrics_ModSettings_FaceColor"
                 );
-                CustomInputField faceColorInput = UIHelper.CreateInputField(
+                var embedFaceColorInput = UIHelper.CreateInputField(
                     faceColorGroup.Transform,
                     "EmbedFaceColor",
                     (_, str) =>
@@ -337,11 +347,14 @@ namespace ColoredLyrics
                         embedShaderParams["_FaceColor"] = color.Convert();
                     }
                 );
-                faceColorInput.CharacterLimit = 8;
-                faceColorInput.InputField.text = ColorUtility.ToHtmlStringRGBA(DEFAULT_EMBED_FACECOLOR);
+                embedFaceColorInput.CharacterLimit = 8;
+                string defaultFaceColor = ColorUtility.ToHtmlStringRGBA(DEFAULT_EMBED_FACECOLOR);
+                embedFaceColorInput.InputField.text = defaultFaceColor;
                 embedShaderParams["_FaceColor"] = DEFAULT_EMBED_FACECOLOR.Convert();
+                syncUI.AddUI("_FaceColor", embedFaceColorInput, defaultFaceColor);
 
-                CustomMultiChoice faceDilate = UIHelper.CreateLargeMultiChoiceButton(
+
+                var embedFaceDilateInput = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedFaceDilate",
                     "ColoredLyrics_ModSettings_FaceDilate",
@@ -354,10 +367,11 @@ namespace ColoredLyrics
                     v => v.ToString()
                 );
                 embedShaderParams["_FaceDilate"] = 0;
-                faceDilate.SetCurrentValue(0); // Default to 0
+                embedFaceDilateInput.SetCurrentValue(0); // Default to 0
+                syncUI.AddUI("_FaceDilate", embedFaceDilateInput, 0);
 
                 // Outline
-                CustomMultiChoice outlineWidth = UIHelper.CreateLargeMultiChoiceButton(
+                var embedOutlineWidth = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedOutlineWidth",
                     "ColoredLyrics_ModSettings_OutlineWidth",
@@ -370,7 +384,8 @@ namespace ColoredLyrics
                     v => v.ToString()
                 );
                 embedShaderParams["_OutlineWidth"] = 0.05f;
-                outlineWidth.SetCurrentValue(5); // Default to 5
+                embedOutlineWidth.SetCurrentValue(5); // Default to 5
+                syncUI.AddUI("_OutlineWidth", embedOutlineWidth, 5);
 
                 var outlineColorGroup = UIHelper.CreateGroup(group.Transform, "OutlineColorGroup");
                 outlineColorGroup.LayoutDirection = Axis.Horizontal;
@@ -379,7 +394,8 @@ namespace ColoredLyrics
                     "EmbedOutlineColorLabel",
                     "ColoredLyrics_ModSettings_OutlineColor"
                 );
-                CustomInputField outlineColorInput = UIHelper.CreateInputField(
+                
+                var embedOutlineColor = UIHelper.CreateInputField(
                     outlineColorGroup.Transform,
                     "EmbedOutlineColor",
                     (_, str) =>
@@ -390,9 +406,11 @@ namespace ColoredLyrics
                         embedShaderParams["_OutlineColor"] = color.Convert();
                     }
                 );
-                outlineColorInput.CharacterLimit = 8;
-                outlineColorInput.InputField.text = ColorUtility.ToHtmlStringRGBA(DEFAULT_EMBED_OUTLINECOLOR);
+                embedOutlineColor.CharacterLimit = 8;
+                string defaultOutlineColor = ColorUtility.ToHtmlStringRGBA(DEFAULT_EMBED_OUTLINECOLOR);
+                embedOutlineColor.InputField.text = defaultOutlineColor;
                 embedShaderParams["_OutlineColor"] = DEFAULT_EMBED_OUTLINECOLOR.Convert(); // Default to black
+                syncUI.AddUI("_OutlineColor", embedOutlineColor, defaultOutlineColor);
 
                 // Other configs
                 var defaultColorGroup = UIHelper.CreateGroup(group.Transform, "DefaultColorGroup");
@@ -402,7 +420,7 @@ namespace ColoredLyrics
                     "EmbedDefaultColorLabel",
                     "ColoredLyrics_ModSettings_DefaultColor"
                 );
-                CustomInputField defaultColorInput = UIHelper.CreateInputField(
+                var embedDefaultColor = UIHelper.CreateInputField(
                     defaultColorGroup.Transform,
                     "EmbedDefaultColor",
                     (_, str) =>
@@ -413,11 +431,13 @@ namespace ColoredLyrics
                         embedConfig.defaultColor = color.Convert();
                     }
                 );
-                defaultColorInput.CharacterLimit = 8;
+                embedDefaultColor.CharacterLimit = 8;
+                string defaultColor = ColorUtility.ToHtmlStringRGBA(DEFAULT_EMBED_COLOR);
                 embedConfig.defaultColor = DEFAULT_EMBED_COLOR.Convert();
-                defaultColorInput.InputField.text = ColorUtility.ToHtmlStringRGBA(DEFAULT_EMBED_COLOR); // Default to white
+                embedDefaultColor.InputField.text = defaultColor; // Default to white
+                syncUI.AddUI("embedDefaultColor", embedDefaultColor, defaultColor);
 
-                CustomMultiChoice fadeInRatio = UIHelper.CreateLargeMultiChoiceButton(
+                var embedFadeIn = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedFadeInRatio",
                     "ColoredLyrics_ModSettings_FadeInRatio",
@@ -429,9 +449,10 @@ namespace ColoredLyrics
                     () => new IntRange(0, 101),
                     v => v.ToString()
                 );
-                fadeInRatio.SetCurrentValue(100);
+                embedFadeIn.SetCurrentValue(100);
+                syncUI.AddUI("embedFadeIn", embedFadeIn, 100);
 
-                CustomMultiChoice fadeOutRatio = UIHelper.CreateLargeMultiChoiceButton(
+                var embedFadeOut = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedFadeOutRatio",
                     "ColoredLyrics_ModSettings_FadeOutRatio",
@@ -443,7 +464,8 @@ namespace ColoredLyrics
                     () => new IntRange(0, 101),
                     v => v.ToString()
                 );
-                fadeOutRatio.SetCurrentValue(100);
+                embedFadeOut.SetCurrentValue(100);
+                syncUI.AddUI("embedFadeOut", embedFadeOut, 100);
 
                 // Apply
                 UIHelper.CreateButton(
@@ -458,6 +480,7 @@ namespace ColoredLyrics
                 );
 
                 quickModGroup = group;
+                quickModGroup.GameObject.SetActive(TrackLyricDataManager.currentTrack != null);
             });
         }
 

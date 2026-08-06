@@ -12,7 +12,7 @@
     "en": "Embedded Parameters Only"
   },
   "ColoredLyrics_ModSettings_EmbeddedOnlyTooltip": {
-    "en": "When embedded lyrics Only is toggled off, charts with no embedded lyric parameters will use this default profile."
+    "en": "When 'Embedded Parameters Only' is toggled off, charts with no embedded lyric parameters will use this default profile."
   },
   "ColoredLyrics_ModSettings_FaceSoftness": {
     "en": "Softness"
@@ -42,7 +42,7 @@
     "en": "Fade Out"
   },
   "ColoredLyrics_QuickSettings_Header": {
-    "en": "Embed Lyric Material"
+    "en": "Embed Lyric Settings"
   },
   "ColoredLyrics_ModSettings_Apply": {
     "en": "Apply"

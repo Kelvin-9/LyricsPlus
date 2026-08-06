@@ -1,27 +1,13 @@
 ﻿using HarmonyLib;
-using System.Globalization;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace ColoredLyrics
 {
     [HarmonyPatch]
     public class Patches
     {
-        [HarmonyPatch(typeof(HdrMeshEffect), "Awake")]
-        [HarmonyPrefix]
-        internal static void HdrMeshEffect_AwakePrefix(HdrMeshEffect __instance)
-        {
-            if (!ConfigManager.config.enableColoredLyrics || ConfigManager.config.embeddedOnly && !TrackLyricDataManager.hasEmbeddedData) return;
-
-            bool isLyricsText = __instance.transform.parent?.name.Contains("BackgroundLyric(Clone)(Clone)") ?? false;
-            if (!isLyricsText) return;
-
-            Object.Destroy(__instance);
-        }
-
-
+        // Swaps material with one that uses unmodified textmeshpro shader
         [HarmonyPatch(typeof(CustomTextMeshProHelper), "SetFont")]
         [HarmonyPostfix]
         internal static void CustomTextMeshProHelper_SetFontPostfix(CustomTextMeshProHelper __instance)
@@ -38,10 +24,10 @@ namespace ColoredLyrics
                 return;
             }
 
-            Debug.Log($"Material on {__instance.parentText.transform} replaced");
             __instance.parentText.fontSharedMaterial = newMat;
         }
 
+        // Set animation properties
         static bool _assignedDefault = false;
         static BackgroundLyricLineDisplay.AnimTimingSettings defaultAnim;
         [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "SetPhrase")]
@@ -69,6 +55,7 @@ namespace ColoredLyrics
             __instance.animTimingSettings = anim;
         }
 
+        // Ensure alpha and tint has proper values to carry their value out of prerender
         [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "PreRender")]
         [HarmonyPrefix]
         internal static void BackgroundLyricLineDisplay_PrerenderPrefix(ref TMP_TextInfo textInfo)
@@ -86,6 +73,7 @@ namespace ColoredLyrics
             }
         }
 
+        // Apply color
         [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "PreRender")]
         [HarmonyPostfix]
         internal static void BackgroundLyricLineDisplay_PrerenderPostfix(ref TMP_TextInfo textInfo)
@@ -135,7 +123,8 @@ namespace ColoredLyrics
         private static void TrackConstructor(PlayableTrackData trackData)
         {
             // Load chart's embedded data
-            TrackLyricDataManager.Load(trackData);
+            bool loaded = TrackLyricDataManager.Load(trackData);
+            ConfigManager.quickModGroup?.GameObject.SetActive(loaded);
         }
     }
 }

@@ -149,7 +149,6 @@ namespace ColoredLyrics
         
         public static void ApplyShaderParameter(this Material mat, string name, object value)
         {
-            Debug.Log($"HI {name}");
             if (value is float f)
             {
                 mat.SetFloat(name, f);
