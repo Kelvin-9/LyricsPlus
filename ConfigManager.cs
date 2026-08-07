@@ -546,7 +546,7 @@ namespace ColoredLyrics
                     "ColoredLyrics_ModSettings_DebugApply",
                     () =>
                     {
-                        EmbeddedDataManager.DEBUG_SAVETRIGGER(EmbeddedDataManager.currentFile);
+                        EmbeddedDataManager.CreateLyricTriggerFile(EmbeddedDataManager.currentFile);
                     }
                 );
 

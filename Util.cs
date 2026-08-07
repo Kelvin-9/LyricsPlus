@@ -118,28 +118,32 @@ namespace ColoredLyrics
 
         public static IMultiAssetSaveFile? LoadSaveFromPlayData(PlayableTrackData playableTrackData)
         {
-            //if (!ConfigManager.config.enableColoredLyrics) return;
-            if (playableTrackData.TrackDataList.Count == 0)
-                return null;
+            (string? directory, string? fileName) = GetDirectoryFromPlayData(playableTrackData);
+            if (directory == null) return null;
 
-            // Get track data
-            TrackData track = playableTrackData.TrackDataList[0];
-            string path = track.CustomFile?.FilePath ?? "";
-            if (string.IsNullOrEmpty(path))
-                return null;
-
-            // Get file / directory
-            string filename = Path.GetFileNameWithoutExtension(path);
-            string directory = Directory.GetParent(path)?.FullName ?? "";
-            if (string.IsNullOrEmpty(directory))
-                return null;
-
-            string diffStr = playableTrackData.Difficulty.ToString().ToUpper();
             var files = new List<IMultiAssetSaveFile>();
             playableTrackData.GetCustomFiles(files);
 
             IMultiAssetSaveFile file = files.First();
             return file;
+        }
+
+        public static (string? directory, string? fileName) GetDirectoryFromPlayData(PlayableTrackData playableTrackData)
+        {
+            if (playableTrackData.TrackDataList.Count == 0)
+                return (null, null);
+
+            // Get track data
+            TrackData track = playableTrackData.TrackDataList[0];
+            string path = track.CustomFile?.FilePath ?? "";
+            if (string.IsNullOrEmpty(path))
+                return (null, null);
+
+            // Get file / directory
+            string? directory = Directory.GetParent(path)?.FullName ?? null;
+            string? filename = Path.GetFileNameWithoutExtension(path);
+
+            return (directory, filename);
         }
     }
 }

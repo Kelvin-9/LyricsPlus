@@ -5,6 +5,7 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
+using SpinCore.UI;
 
 namespace ColoredLyrics
 {
@@ -34,10 +35,18 @@ namespace ColoredLyrics
             // Get embed data
             LoadShaderParams(file);
             LoadLyricConfig(file);
-            LoadTriggersFromFile(file);
 
+            if (LoadTriggersFromLyrFile(playableTrackData))
+            {
+                return true;
+            }
 
-            return true;
+            if (LoadTriggersFromChart(file))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         // SHADER EMBED PARAMS
@@ -105,6 +114,17 @@ namespace ColoredLyrics
             Util.ApplyShaderParameter(matMap.Values.ToList(), shaderData);
         }
 
+        internal static void CreateLyricTriggerFile(IMultiAssetSaveFile? file)
+        {
+            if (file == null)
+            {
+                return;
+            }
+
+            string path = file.FilePath + file.FileNameNoExtension;
+            Debug.Log(path);
+        }
+
 
         internal static void DEBUG_SAVETRIGGER(IMultiAssetSaveFile? file)
         {
@@ -141,16 +161,36 @@ namespace ColoredLyrics
             CustomChartHelper.SetCustomData(file, TRIGGER_KEY, data, save: true);
         }
 
-        public static Dictionary<string, List<LyricTrigger>>? LoadTriggersFromFile(IMultiAssetSaveFile? file)
+        public static bool LoadTriggersFromChart(IMultiAssetSaveFile? file)
         {
+            if (file == null)
+            {
+                return false;
+            }
+
+            Debug.Log($"Loading triggers from chart {file?.FileNameNoExtension}");
             if (!CustomChartHelper.TryGetCustomData(file, TRIGGER_KEY, out LyricTriggerEmbedData t))
             {
                 LyricTriggers.ClearAll();
-                return null;
+                return false;
             }
 
             LyricTriggers.LoadTriggers(t.triggers);
-            return t.triggers;
+            return true;
+        }
+
+        public static bool LoadTriggersFromLyrFile(PlayableTrackData playableData)
+        {
+            TriggerFileParser parser = new();
+            bool sucessful = parser.LoadTriggersFromFile(playableData, out var triggers);
+            if (!sucessful || triggers == null)
+            {
+                LyricTriggers.ClearAll();
+                return false;
+            }
+
+            LyricTriggers.LoadTriggers(triggers);
+            return true;
         }
 
         // UI SYNC
