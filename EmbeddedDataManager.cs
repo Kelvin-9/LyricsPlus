@@ -1,7 +1,6 @@
 ﻿using SpinCore.Utility;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -9,7 +8,7 @@ using Newtonsoft.Json.Linq;
 
 namespace ColoredLyrics
 {
-    internal class TrackLyricDataManager
+    internal class EmbeddedDataManager
     {
         public static PlayableTrackData? currentTrack;
         public static IMultiAssetSaveFile? currentFile;
@@ -19,29 +18,11 @@ namespace ColoredLyrics
 
         public static bool Load(PlayableTrackData playableTrackData)
         {
-            //if (!ConfigManager.config.enableColoredLyrics) return;
-            if (playableTrackData.TrackDataList.Count == 0) 
-                return false; 
-
-            // Get track data
-            TrackData track = playableTrackData.TrackDataList[0];
-            string path = track.CustomFile?.FilePath ?? "";
-            if (string.IsNullOrEmpty(path))
+            IMultiAssetSaveFile? file = Util.LoadSaveFromPlayData(playableTrackData);
+            if (file == null)
+            {
                 return false;
-
-            // Get file / directory
-            string filename = Path.GetFileNameWithoutExtension(path);
-            string directory = Directory.GetParent(path)?.FullName ?? "";
-            if (string.IsNullOrEmpty(directory))
-                return false;
-
-            string diffStr = playableTrackData.Difficulty.ToString().ToUpper();
-            var files = new List<IMultiAssetSaveFile>();
-            playableTrackData.GetCustomFiles(files);
-            
-            IMultiAssetSaveFile file = files.First();
-            if (file is null)
-                return false;
+            }
 
             currentTrack = playableTrackData;
             currentFile = file;
@@ -53,6 +34,8 @@ namespace ColoredLyrics
             // Get embed data
             LoadShaderParams(file);
             LoadLyricConfig(file);
+            LoadTriggersFromFile(file);
+
 
             return true;
         }
@@ -80,6 +63,21 @@ namespace ColoredLyrics
             }
         }
 
+        public static T GetValueFromShaderParams<T>(string key, T defaultTo)
+        {
+            if (!shaderData.TryGetValue(key, out var val))
+            {
+                return defaultTo;
+            }
+
+            if (val is T t)
+            {
+                return t;
+            }
+
+            return defaultTo;
+        }
+
         static Dictionary<string, object>? TryGetShaderParamsFromTrack(IMultiAssetSaveFile file)
         {
             if (CustomChartHelper.TryGetCustomData(file, SHADER_KEY, out LyricShaderEmbedData shaderDataGen))
@@ -90,7 +88,7 @@ namespace ColoredLyrics
             return null;
         }
 
-        internal static void SetShaderParametersForTrack(IMultiAssetSaveFile? file, LyricShaderEmbedData data)
+        internal static void SaveShaderParametersForTrack(IMultiAssetSaveFile? file, LyricShaderEmbedData data)
         {
             if (file == null)
             {
@@ -107,7 +105,74 @@ namespace ColoredLyrics
             Util.ApplyShaderParameter(matMap.Values.ToList(), shaderData);
         }
 
-        // CHART EMBED CONFIGS
+
+        internal static void DEBUG_SAVETRIGGER(IMultiAssetSaveFile? file)
+        {
+            if (file == null)
+            {
+                return;
+            }
+
+            LyricTriggerEmbedData data = new();
+            for (int i = 1; i < 255; i++)
+            {
+                Color c = UnityEngine.Color.HSVToRGB(i / 255f, 1, 1).Convert();
+                Debug.Log(c);
+            }
+            data.AddTrigger("#000001FF", new LyricTrigger(1, 10, new Color(1, 0, 0), new Color(0, 1, 0)));
+            data.AddTrigger("#000001FF", new LyricTrigger(10, 10, new Color(0, 1, 0), new Color(0, 0, 1)));
+
+            SaveTriggerDataForTrack(file, data);
+        }
+
+        // TRIGGERS
+        const string TRIGGER_KEY = "LyricTriggers";
+        internal static void SaveTriggerDataForTrack(IMultiAssetSaveFile? file, LyricTriggerEmbedData data)
+        {
+            if (file == null)
+            {
+                return;
+            }
+            if (data.triggers == null)
+            {
+                return;
+            }
+
+            CustomChartHelper.SetCustomData(file, TRIGGER_KEY, data, save: true);
+        }
+
+        public static Dictionary<string, List<LyricTrigger>>? LoadTriggersFromFile(IMultiAssetSaveFile? file)
+        {
+            if (!CustomChartHelper.TryGetCustomData(file, TRIGGER_KEY, out LyricTriggerEmbedData t))
+            {
+                LyricTriggers.ClearAll();
+                return null;
+            }
+
+            LyricTriggers.LoadTriggers(t.triggers);
+            return t.triggers;
+        }
+
+        // UI SYNC
+        public static void SyncAllQuickmodEmbedUI()
+        {
+            if (!hasEmbeddedData) return;
+
+            foreach (var item in shaderData)
+            {
+                ConfigManager.syncUI.Sync(item.Key, item.Value);
+            }
+
+            ConfigManager.syncUI.Sync("embedDefaultColor", lyricConfig?.defaultColor);
+            ConfigManager.syncUI.Sync("embedFadeIn", lyricConfig?.fadeInRatio);
+            ConfigManager.syncUI.Sync("embedFadeOut", lyricConfig?.fadeOutRatio);
+            ConfigManager.syncUI.Sync("embedUnspokenWordAlpha", lyricConfig?.unspokenWordAlpha);
+            ConfigManager.syncUI.Sync("embedSlant", lyricConfig?.slant);
+            ConfigManager.syncUI.Sync("embedTextboxSize", lyricConfig?.textboxSize);
+        }
+
+
+        // LYRIC CONFIGS
         const string CONFIG_KEY = "LyricConfig";
         static void LoadLyricConfig(IMultiAssetSaveFile file)
         {
@@ -119,13 +184,7 @@ namespace ColoredLyrics
                 return;
             }
 
-            if (lyricConfig != null)
-            {
-                ConfigManager.syncUI.Sync("embedDefaultColor", lyricConfig?.defaultColor);
-                ConfigManager.syncUI.Sync("embedFadeIn", lyricConfig?.fadeInRatio);
-                ConfigManager.syncUI.Sync("embedFadeOut", lyricConfig?.fadeOutRatio);
-            }
-
+            SyncAllQuickmodEmbedUI();
         }
 
         static LyricConfig? TryGetLyricConfigFromTrack(IMultiAssetSaveFile file, string diff)
@@ -149,6 +208,18 @@ namespace ColoredLyrics
 
             CustomChartHelper.SetCustomData(file, CONFIG_KEY, config, save: true);
             lyricConfig = config;
+        }
+
+        // MODIFY SHADER PARAMETER DURING PLAY
+        public static void ModifyLUT(Color32 key, Color32 value)
+        {
+            if (lyricConfig == null) 
+            {
+                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+                return;
+            }
+
+            lyricConfig?.SetLUT(key, value);
         }
 
         // GET CHART LYRIC MATERIAL
@@ -289,27 +360,37 @@ namespace ColoredLyrics
         }
     }
 
-    public struct LyricConfig
+    public class LyricConfig
     {
         public Color defaultColor = new(1, 1, 1, 1);
+        private Dictionary<Color32, Color32> lut = new();
         public float fadeInRatio = 1;
         public float fadeOutRatio = 1;
+        public float unspokenWordAlpha = 1;
+        public float slant = 0;
+        public float textboxSize = 0;
 
         public LyricConfig()
         {
-
-        }
-
-        public LyricConfig(Color defaultColor, float fadeInRatio, float fadeOutRatio)
-        {
-            this.defaultColor = defaultColor;
-            this.fadeInRatio = fadeInRatio;
-            this.fadeOutRatio = fadeOutRatio;
+            defaultColor = new();
+            lut = new();
         }
 
         public override string ToString()
         {
-            return $"\n___\nDefaultColor: {defaultColor}\nFadeIn: {fadeInRatio}\nFadeOut: {fadeOutRatio}\n___\n";
+            return $"\n___\nDefaultColor: {defaultColor}\nFadeIn: {fadeInRatio}\nFadeOut: {fadeOutRatio}\nunspoken: {unspokenWordAlpha}\nslant: {slant}\nTextboxSize: {textboxSize}\n___\n";
+        }
+
+        public void SetLUT(Color32 key, Color32 value)
+        {
+            lut[key] = value;
+        }
+
+        public Color32 EvaluateLUT(Color32 key)
+        {
+            Color32 c = lut.GetValueOrDefault(key.WithA(255), key);
+
+            return c.WithA(key.a);
         }
     }
 }

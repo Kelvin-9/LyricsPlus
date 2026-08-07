@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using System;
 using TMPro;
 using UnityEngine;
 
@@ -27,7 +28,32 @@ namespace ColoredLyrics
             __instance.parentText.fontSharedMaterial = newMat;
         }
 
-        // Set animation properties
+        [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "OnFirstActivatingBackgroundAsset")]
+        [HarmonyPostfix]
+        internal static void BackgroundLyricLineDisplay_OnFirstActivatingBackgroundAssetPostfix(BackgroundLyricLineDisplay __instance)
+        {
+            TMP_Text textComponent = __instance.textRenderer;
+            if (textComponent == null) return;
+
+            var privateMethodInfo = AccessTools.Method(typeof(BackgroundLyricLineDisplay), "PreRender");
+            if (privateMethodInfo == null) return;
+
+            var targetDelegate = Delegate.CreateDelegate(typeof(Action<TMP_TextInfo>), __instance, privateMethodInfo) as Action<TMP_TextInfo>;
+            var eventField = AccessTools.Field(typeof(TMP_Text), "OnPreRenderText");
+
+            if (eventField != null && targetDelegate != null)
+            {
+                Action<TMP_TextInfo> currentDelegate = (Action<TMP_TextInfo>)eventField.GetValue(textComponent);
+
+                if (currentDelegate != null)
+                {
+                    Delegate updatedDelegate = Delegate.Remove(currentDelegate, targetDelegate);
+                    eventField.SetValue(textComponent, updatedDelegate);
+                }
+            }
+        }
+
+        // Set animation properties 
         static bool _assignedDefault = false;
         static BackgroundLyricLineDisplay.AnimTimingSettings defaultAnim;
         [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "SetPhrase")]
@@ -43,24 +69,39 @@ namespace ColoredLyrics
                 _assignedDefault = true;
             }
 
-            float fadeIn  = TrackLyricDataManager.lyricConfig?.fadeInRatio  ?? ConfigManager.config.fadeInRatio;
-            float fadeOut = TrackLyricDataManager.lyricConfig?.fadeOutRatio ?? ConfigManager.config.fadeOutRatio;
-            //Debug.Log($"fade: {fadeIn} {fadeOut}");
-
+            float fadeIn  = EmbeddedDataManager.lyricConfig?.fadeInRatio  ?? ConfigManager.config.fadeInRatio;
+            float fadeOut = EmbeddedDataManager.lyricConfig?.fadeOutRatio ?? ConfigManager.config.fadeOutRatio;
+            anim.minLetterTime = Mathf.Lerp(0.000001f, defaultAnim.minLetterTime, fadeIn);
             anim.fadeUpToFullRange.max   = Mathf.Lerp(defaultAnim.fadeUpToFullRange.min, defaultAnim.fadeUpToFullRange.max,   fadeIn);
             anim.defaultFadeInRange.min  = Mathf.Lerp(defaultAnim.fadeUpToFullRange.min, defaultAnim.defaultFadeInRange.min,  fadeIn);
             anim.defaultFadeInRange.max  = Mathf.Lerp(defaultAnim.fadeUpToFullRange.min, defaultAnim.defaultFadeInRange.max,  fadeIn);
             anim.defaultFadeOutRange.min = Mathf.Lerp(defaultAnim.fadeUpToFullRange.max, defaultAnim.defaultFadeOutRange.min, fadeOut);
             anim.defaultFadeOutRange.max = Mathf.Lerp(defaultAnim.fadeUpToFullRange.max, defaultAnim.defaultFadeOutRange.max, fadeOut);
+
+            float slant = EmbeddedDataManager.lyricConfig?.slant ?? defaultAnim.slant;
+            anim.slant = slant;
+
             __instance.animTimingSettings = anim;
+
+            // EMBEDDED ONLY
+            if (EmbeddedDataManager.lyricConfig != null)
+            {
+                // Set textbox size to effectively infinite when maxed out, otherwise scale linearly
+                float size = EmbeddedDataManager.lyricConfig.textboxSize == 1 ? 9999999f : EmbeddedDataManager.lyricConfig.textboxSize * 100; 
+                __instance.textRenderer.margin = new Vector4(-size, __instance.textRenderer.margin.y, -size, __instance.textRenderer.margin.w);
+
+                // Phrasing settings
+                __instance.unspokenWordAlpha = EmbeddedDataManager.lyricConfig.unspokenWordAlpha;
+            }
+
         }
 
         // Ensure alpha and tint has proper values to carry their value out of prerender
         [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "PreRender")]
         [HarmonyPrefix]
-        internal static void BackgroundLyricLineDisplay_PrerenderPrefix(ref TMP_TextInfo textInfo)
+        internal static bool BackgroundLyricLineDisplay_PrerenderPrefix(ref TMP_TextInfo textInfo)
         {
-            if (textInfo.textComponent.fontSharedMaterial.shader != ModBase.textShader) return;
+            if (textInfo.textComponent.fontSharedMaterial.shader != ModBase.textShader) return true;
             
             for (int i = 0; i < textInfo.characterCount; i++)
             {
@@ -71,6 +112,8 @@ namespace ColoredLyrics
                 // Only using BL vertex for this since all vertices are applied the same data
                 ptr.vertex_BL.color = new Color32(0, 0, 255, 255);
             }
+
+            return true;
         }
 
         // Apply color
@@ -90,11 +133,20 @@ namespace ColoredLyrics
                 int matInd = ptr.materialReferenceIndex;
 
                 Color32 c = ptr.color;
-                if (c.Equal(new Color32(255, 255, 255, 255), ignoreAlpha: true))
+
+                // Default color hack
+                //if (c.Equal(new Color32(255, 255, 255, 255), ignoreAlpha: true))
+                //{
+                //    c = EmbeddedDataManager.lyricConfig?.defaultColor.ToUnityColor() ?? ConfigManager.config.defaultColor.ToUnityColor();
+                //}
+                
+                if (EmbeddedDataManager.lyricConfig != null)
                 {
-                    // Default color hack
-                    c = TrackLyricDataManager.lyricConfig?.defaultColor.ToUnityColor() ?? ConfigManager.config.defaultColor.ToUnityColor();
+                    // LUT for triggers
+                    Color32 lastc = c;
+                    c = EmbeddedDataManager.lyricConfig.EvaluateLUT(c);
                 }
+
 
                 // Grabbing that tint / alpha data modified by Prerender
                 float alpha = c.a * textInfo.meshInfo[matInd].colors32[vert].a / 255f;
@@ -123,7 +175,7 @@ namespace ColoredLyrics
         private static void TrackConstructor(PlayableTrackData trackData)
         {
             // Load chart's embedded data
-            bool loaded = TrackLyricDataManager.Load(trackData);
+            bool loaded = EmbeddedDataManager.Load(trackData);
             ConfigManager.quickModGroup?.GameObject.SetActive(loaded);
         }
     }

@@ -25,12 +25,16 @@ namespace ColoredLyrics
         {
             if (value is float f)
             {
+                if (!multiChoice.ContainsKey(key)) return;
+
                 KeyValuePair<CustomMultiChoice, int> pair = multiChoice[key];
                 CustomMultiChoice element = pair.Key;
                 element.SetCurrentValue((int)(f * 100));
             }
             else if (value is Color c)
             {
+                if (!textInput.ContainsKey(key)) return;
+
                 KeyValuePair<CustomInputField, string> pair = textInput[key];
                 CustomInputField element = pair.Key;
                 element.InputField.text = ColorUtility.ToHtmlStringRGBA(c.ToUnityColor());

@@ -41,10 +41,22 @@
   "ColoredLyrics_ModSettings_FadeOutRatio": {
     "en": "Fade Out"
   },
+  "ColoredLyrics_ModSettings_UnspokenWordAlpha": {
+    "en": "Unspoken Alpha"
+  },
+  "ColoredLyrics_ModSettings_Slant": {
+    "en": "Slant"
+  },
+  "ColoredLyrics_ModSettings_TextboxSize": {
+    "en": "Textbox Size"
+  },
   "ColoredLyrics_QuickSettings_Header": {
     "en": "Embed Lyric Settings"
   },
   "ColoredLyrics_ModSettings_Apply": {
     "en": "Apply"
+  },
+  "ColoredLyrics_ModSettings_DebugApply": {
+    "en": "Debug Apply"
   }
 }
