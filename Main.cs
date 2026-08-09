@@ -109,6 +109,11 @@ namespace ColoredLyrics
             debug?.LogError(message);
         }
 
+        public static void LogWarning(object message)
+        {
+            debug?.LogWarning(message);
+        }
+
         public static void Log(object message)
         {
             debug?.LogInfo(message);

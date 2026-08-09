@@ -54,7 +54,13 @@
     "en": "Embed Lyric Settings"
   },
   "ColoredLyrics_ModSettings_Apply": {
-    "en": "Apply"
+    "en": "Embed Parameters"
+  },
+  "ColoredLyrics_ModSettings_CreateTriggerFile": {
+    "en": "Edit Triggers"
+  },
+  "ColoredLyrics_ModSettings_EmbedTriggerFile": {
+    "en": "Embed Triggers"
   },
   "ColoredLyrics_ModSettings_DebugApply": {
     "en": "Debug Apply"

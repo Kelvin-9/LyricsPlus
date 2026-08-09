@@ -1,397 +1,332 @@
 ﻿using SpinCore.Triggers;
+using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using System.Linq;
 using UnityEngine;
+using static GameSystems.ItemConfig.NoteSkinConfig.CurrentSelectedMeshes;
+using static UnityEngine.UI.Image;
 
 namespace ColoredLyrics
 {
     internal class LyricTriggers
     {
-        internal static Dictionary<string, Color32> TriggerKeys = [];
-        internal static Dictionary<Color32, List<LyricTrigger>> triggers = new();
+        internal static Dictionary<string, Color32> LUTKeys = [];
+        internal static Dictionary<Color32, List<Trigger<Color>>> colorTriggers = new();
+        internal static Dictionary<string, List<Trigger<float>>> setTriggers = new();
+        internal static Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers = new();   // Offset uses Vector4 as W stores easing
+        internal static bool hasTriggers = false;
 
-        internal static void LoadTriggers(Dictionary<string, List<LyricTrigger>> data)
+        internal static void LoadTriggers(
+            Dictionary<string, List<Trigger<Color>>>? colorTriggers, 
+            Dictionary<string, Color32>? colorKeys, 
+            Dictionary<string, List<Trigger<float>>>? setTriggers,
+            Dictionary<string, List<Trigger<Vector4>>>? offsetTriggers
+            )
         {
             ClearAll();
 
-            foreach (KeyValuePair<string, List<LyricTrigger>> item in data)
-            {
-                if (!ColorUtility.TryParseHtmlString(item.Key.StartsWith("#") ? item.Key : "#" + item.Key, out UnityEngine.Color col))
-                {
-                    Debug.Log($"Could not parse color string {item.Key}");
-                    continue;
-                }
+            hasTriggers = colorTriggers != null || setTriggers != null || offsetTriggers != null;
 
-                triggers.Add(col, item.Value);
+            LUTKeys = colorKeys ?? new();
+            if (colorTriggers != null) 
+            {
+                foreach (KeyValuePair<string, List<Trigger<Color>>> item in colorTriggers)
+                {
+                    if (!ColorUtility.TryParseHtmlString(item.Key.StartsWith("#") ? item.Key : "#" + item.Key, out UnityEngine.Color col))
+                    {
+                        Debug.Log($"Could not parse color string {item.Key}");
+                        continue;
+                    }
+
+                    LyricTriggers.colorTriggers.Add(col, item.Value);
+                }
+            }
+
+            if (setTriggers != null)
+            {
+                foreach (KeyValuePair<string, List<Trigger<float>>> item in setTriggers)
+                {
+                    LyricTriggers.setTriggers.Add(item.Key, item.Value);
+                    Debug.Log($"Loading {item.Key}: {item.Value.Count}");
+                }
+            }
+
+            if (offsetTriggers != null)
+            {
+                foreach (KeyValuePair<string, List<Trigger<Vector4>>> item in offsetTriggers)
+                {
+                    if (!ColorUtility.TryParseHtmlString(item.Key.StartsWith("#") ? item.Key : "#" + item.Key, out UnityEngine.Color col))
+                    {
+                        Debug.Log($"Could not parse color string {item.Key}");
+                        continue;
+                    }
+
+                    LyricTriggers.offsetTriggers.Add(col, item.Value);
+                }
             }
 
             RegisterEvents();
-            LoadTriggersIntoManager(TriggerKeys, triggers);
+            LoadTriggersIntoManager(LUTKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers);
         }
 
-        internal static void LoadTriggers(Dictionary<Color32, List<LyricTrigger>> data)
+        internal static void LoadTriggers(
+            Dictionary<Color32, List<Trigger<Color>>>? colorTriggers, 
+            Dictionary<string, Color32>? colorKeys, 
+            Dictionary<string, List<Trigger<float>>>? setTriggers,
+            Dictionary<Color32, List<Trigger<Vector4>>>? offsetTriggers
+            )
         {
             ClearAll();
 
-            triggers = data;
+            hasTriggers = colorTriggers != null || setTriggers != null || offsetTriggers != null;
+
+            LUTKeys = colorKeys ?? new();
+            LyricTriggers.colorTriggers = colorTriggers ?? new();
+            LyricTriggers.setTriggers = setTriggers ?? new();
+            LyricTriggers.offsetTriggers = offsetTriggers ?? new();
 
             RegisterEvents();
-            LoadTriggersIntoManager(TriggerKeys, triggers);
+            LoadTriggersIntoManager(LUTKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers);
+            foreach (var pair in LUTKeys.ToList())
+            {
+                LUTKeys.Add("o" + pair.Key, pair.Value);
+            }
         }
 
         internal static void ClearAll()
         {
-            Debug.Log("Clearing Triggers");
-            foreach (var pair in TriggerKeys)
+            foreach (var pair in LUTKeys)
             {
                 TriggerManager.ClearTriggers(pair.Key);
             }
-            TriggerKeys.Clear();
-            triggers.Clear();
+            LUTKeys.Clear();
+            colorTriggers.Clear();
+            setTriggers.Clear();
+            offsetTriggers.Clear();
         }
 
         private static void RegisterEvents()
         {
-            int keyIndex = 0;
-            foreach (Color32 keyColor in triggers.Keys)
+            Dictionary<Color32, string> colorToKey = new();
+
+            foreach (var pair in LUTKeys)
             {
-                string triggerKey = $"LUT{keyIndex}"; // Simplify LUT keys by indexing LUT_MyName, LUT_Name2 => LUT0, LUT1, etc.
-                Debug.Log($"Adding key {triggerKey} mapping from {keyColor}");
-                TriggerKeys[triggerKey] = keyColor;  // e.g. LUT0 = Color32(r, g, b, a)
-                TriggerManager.RegisterTriggerEvent<LyricTrigger>(triggerKey, (trigger, time) =>
+                colorToKey.Add(pair.Value, pair.Key);
+                Debug.Log($"{pair.Value} mapped to {pair.Key}");
+            }
+
+            foreach (Color32 keyColor in colorTriggers.Keys)
+            {
+                string triggerKey = colorToKey[keyColor];
+                Debug.Log($"REGISTERING TRIGGER {triggerKey}");
+                TriggerManager.RegisterTriggerEvent<Trigger<Color>>(triggerKey, (trigger, time) =>
                 {
-                    Color32 mapFrom = TriggerKeys[triggerKey];
+                    Color32 mapFrom = LUTKeys[triggerKey];
                     if (trigger.Duration == 0f)
                     {
-                        EmbeddedDataManager.ModifyLUT(mapFrom, trigger.StartColor.ToColor32());
+                        EmbeddedDataManager.ModifyLUT(mapFrom, trigger.StartValue.ToColor32());
                         return;
                     }
 
                     float t = (time - trigger.Time) / trigger.Duration;
-                    Color32 col = UnityEngine.Color.Lerp(trigger.StartColor.ToUnityColor(), trigger.EndColor.ToUnityColor(), t); // TODO: Use hsv lerping?
+                    Color32 col = Util.LerpHSL(trigger.StartValue.ToUnityColor(), trigger.EndValue.ToUnityColor(), t);
                     EmbeddedDataManager.ModifyLUT(mapFrom, col);
                 });
+            }
 
-                keyIndex++;
+            foreach (string setKey in setTriggers.Keys)
+            {
+                TriggerManager.RegisterTriggerEvent<Trigger<float>>(setKey, (trigger, time) =>
+                {
+                    if (trigger.Duration == 0f)
+                    {
+                        EmbeddedDataManager.SetVariable(setKey, trigger.StartValue);
+                        return;
+                    }
+
+                    float t = (time - trigger.Time) / trigger.Duration;
+                    float val = Mathf.Lerp(trigger.StartValue, trigger.EndValue, t);
+                    EmbeddedDataManager.SetVariable(setKey, val);
+                });
+            }
+
+            foreach (Color32 keyColor in offsetTriggers.Keys)
+            {
+                string triggerKey = "o" + colorToKey[keyColor];
+                Debug.Log($"REGISTERING TRIGGER {triggerKey}");
+                TriggerManager.RegisterTriggerEvent<Trigger<Vector4>>(triggerKey, (trigger, time) =>
+                {
+                    Color32 mapFrom = LUTKeys[triggerKey];
+                    Vector3 from = new(trigger.StartValue.x, trigger.StartValue.y, trigger.StartValue.z);
+                    Vector3 to = new(trigger.EndValue.x, trigger.EndValue.y, trigger.EndValue.z);
+                    if (trigger.Duration == 0f)
+                    {
+                        EmbeddedDataManager.ModifyOffset(mapFrom, from);
+                        return;
+                    }
+
+                    float t = (time - trigger.Time) / trigger.Duration;
+                    Easing.EaseType easing = (Easing.EaseType)trigger.StartValue.w;
+                    Vector3 offset = Vector3.Lerp(from, to, Easing.Evaluate(t, easing));
+                    EmbeddedDataManager.ModifyOffset(mapFrom, offset);
+                });
             }
         }
 
-        private static void LoadTriggersIntoManager(Dictionary<string, Color32> keys, Dictionary<Color32, List<LyricTrigger>> triggers)
+
+        private static void LoadTriggersIntoManager(
+            Dictionary<string, Color32> keys, 
+            Dictionary<Color32, List<Trigger<Color>>> colorTriggers, 
+            Dictionary<string, List<Trigger<float>>> setTriggers,
+            Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers
+        )
         {
+            // By using the keys dictionary, the string keys are turned to Color32 before being used as key so that its easier to look up
             foreach (KeyValuePair<string, Color32> pair in keys)
             {
-                string LUTIndexKey = pair.Key;  // LUT0, LUT1 ... LUTn
-                TriggerManager.LoadTriggers(LUTIndexKey, triggers[pair.Value].ToArray());
-                Debug.Log($"Loaded {triggers[pair.Value].Count} {LUTIndexKey} triggers");
+                string triggerKey = pair.Key;
+                Color32 colorKey = pair.Value;
+                List<ITrigger> triggers = [];
+
+                if (colorTriggers.ContainsKey(colorKey))
+                {
+                    Debug.Log($"LOADING EVENTS {triggerKey} {colorTriggers[colorKey].Count}");
+                    TriggerManager.LoadTriggers(triggerKey, colorTriggers[colorKey].ToArray());
+                }
+
+                if (offsetTriggers.ContainsKey(colorKey))
+                {
+                    Debug.Log($"LOADING EVENTS {"o" + triggerKey} {offsetTriggers[colorKey].Count}");
+                    TriggerManager.LoadTriggers("o" + triggerKey, offsetTriggers[colorKey].ToArray());
+                }
+
+            }
+
+            foreach (string var in setTriggers.Keys)
+            {
+                TriggerManager.LoadTriggers(var, setTriggers[var].ToArray()); 
             }
         }
     }
 
-    internal class TriggerFileParser 
+    static internal class Easing
     {
-        private Dictionary<string, Color32> triggerKeys = [];
-        private Dictionary<Color32, List<LyricTrigger>> triggers = [];
-        private Dictionary<string, float> setTriggers = [];
-
-        public TriggerFileParser()
+        public enum EaseType
         {
-            triggerKeys = [];
-            triggers.Clear();
+            LINEAR,
+            EASEIN,
+            EASEOUT
         }
 
-        internal bool LoadTriggersFromFile(PlayableTrackData file, out Dictionary<Color32, List<LyricTrigger>>? lyricTriggers)
+        public static EaseType IntToEaseType(int i)
         {
-            lyricTriggers = null;
-            (string? directory, string? fileName) = Util.GetDirectoryFromPlayData(file);
-            Debug.Log($"Loading triggers from file {fileName}\n\n");
-            if (directory == null || fileName == null) 
-            {
-                return false; 
-            }
-
-            string lyricPath = Path.Combine(directory, fileName + ".lyr");
-            if (!File.Exists(lyricPath))
-            {
-                return false;
-            }
-
-            List<string> lines = File.ReadAllLines(lyricPath).ToList();
-
-            PreprocessTriggerFile(ref lines);
-            for (int i = 0; i < lines.Count; i++)
-            {
-                ParseLine(lines[i]);
-            }
-
-            lyricTriggers = triggers;
-            return true;
+            return (EaseType)i;
         }
 
-        static void PreprocessTriggerFile(ref List<string> lines)
+        public static float Evaluate(float t, EaseType type)
         {
-            // Remove empty lines and comments
-            for (int i = lines.Count - 1; i >= 0; i--)
+            return type switch
             {
-                lines[i] = lines[i].Trim().ToUpper();
-                if (lines[i].Length == 0 || lines[i].StartsWith("#") || lines[i].StartsWith("//"))
-                {
-                    lines.RemoveAt(i);
-                    continue;
-                }
-            }
-
-            // Expand REPEATs
-            for (int i = 0; i < lines.Count; i++)
-            {
-
-            }
+                EaseType.LINEAR => t,
+                EaseType.EASEIN => t * t,
+                EaseType.EASEOUT => 1f - (1f - t) * (1f - t),
+                _ => t,
+            };
         }
 
-        /// <summary>
-        /// COMMANDS:
-        /// - LUT [LUTindex] [color]
-        ///     Binds a color to a LUT index
-        /// - COLOR [LUTindex] [time] [startColor] [endColor] [duration]
-        /// - COLOR [LUTindex] [time] [Color]
-        ///     Sets the color of a binded LUT entry
-        /// - SET [variable] [number]
-        /// 
-        /// </summary>
-        void ParseLine(string line)
+        public static EaseType ParseEase(string str)
         {
-            Debug.Log($"Parsing {line}");
-
-            string[] tokens = line.Split([' ']);
-            string command = tokens[0];
-            switch (command)
-            {
-                case "LUT":
-                    ParseLUT(tokens);
-                    break;
-                case "COLOR":
-                    ParseCOLOR(tokens);
-                    break;
-                case "SET":
-                    ParseSET(tokens);
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        /// LUT [LUTindex] [color]
-        void ParseLUT(string[] tokens)
-        {
-            if (tokens.Length < 3)
-            {
-                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nLUT [LUTkey] #[color]");
-                return;
-            }
-
-            string LUTindex = tokens[1];
-            UnityEngine.Color? col = ParseColor(tokens[2]);
-            if (col == null)
-            {
-                Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
-                return;
-            }
-
-            triggerKeys.Add($"LUT_{LUTindex}", (Color32)col);
-        }
-
-        /// - COLOR [LUTindex] [time] [startColor] [endColor] [duration]
-        /// - COLOR [LUTindex] [time] [Color]
-        ///     Sets the color of a binded LUT entry
-        void ParseCOLOR(string[] tokens)
-        {
-            if (tokens.Length < 4)
-            {
-                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nCOLOR [LUTindex] [time] #[startColor] #[endColor] [duration]\nCOLOR [LUTindex] [time] #[color]");
-                return;
-            }
-
-            float? time = ParseFloat(tokens[2]);
-            if (time == null)
-            {
-                Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
-            }
-
-            string LUTindex = tokens[1];
-            string LUTkey = $"LUT_{LUTindex}";
-            if (!triggerKeys.ContainsKey(LUTkey))
-            {
-                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with [LUT <name> #<color>]");
-                return;
-            }
-
-            if (tokens.Length >= 6)
-            {
-                UnityEngine.Color? startColor = ParseColor(tokens[3]);
-                UnityEngine.Color? endColor = ParseColor(tokens[4]);
-                float? duration = ParseFloat(tokens[5]);
-                if ( startColor == null || endColor == null || duration == null)
-                {
-                    Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
-                    return;
-                }
-
-
-                Color32 LUTfrom = triggerKeys[LUTkey];
-                if (!triggers.ContainsKey(LUTfrom))
-                {
-                    triggers[LUTfrom] = new();
-                }
-
-                triggers[LUTfrom].Add(new LyricTrigger(time.Value, duration.Value, startColor.Value.Convert(), endColor.Value.Convert()));
-
-            }
-            else if (tokens.Length >= 4)
-            {
-                UnityEngine.Color? color = ParseColor(tokens[3]);
-                if (LUTindex == null || color == null)
-                {
-                    Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
-                    return;
-                }
-
-                Color32 LUTfrom = triggerKeys[LUTkey];
-                if (!triggers.ContainsKey(LUTfrom))
-                {
-                    triggers[LUTfrom] = new();
-                }
-
-                triggers[LUTfrom].Add(new LyricTrigger(time.Value, 0, color.Value.Convert(), color.Value.Convert()));
-            }
-
-            return;
-        }
-
-        /// - SET [variable] [number]
-        void ParseSET(string[] tokens)
-        {
-            if (tokens.Length < 3)
-            {
-                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nSET [variable] [number]");
-                return;
-            }
-
-            string variable = tokens[1];
-            float? value = ParseFloat(tokens[2]);
-            if (value == null)
-            {
-                Debug.LogError($"Could not parse value from command {string.Join(' ', tokens)}");
-                return;
-            }
-
-            
-        }
-
-        static float? ParseFloat(string num)
-        {
-            try
-            {
-                return float.Parse(num, CultureInfo.InvariantCulture);
+            try 
+            { 
+                return Enum.Parse<EaseType>(str);
             }
             catch
             {
-                return null;
+                return EaseType.LINEAR;
             }
-        }
-
-        static int? ParseInt(string num) 
-        {
-            try
-            {
-                return int.Parse(num, CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-        static UnityEngine.Color? ParseColor(string color)
-        {
-            if (ColorUtility.TryParseHtmlString(color, out var colorValue))
-            {
-                return colorValue;
-            }
-
-            return null;
         }
     }
 
 
-    internal class LyricTrigger : ITrigger 
+    internal class Trigger<T> : ITrigger 
     {
         public float Time { get; set; }
         public float Duration { get; set; }
-        public Color StartColor { get; set; }
-        public Color EndColor { get; set; }
+        public T StartValue { get; set; }
+        public T EndValue { get; set; }
 
-        public LyricTrigger()
-        {
+        public Trigger() 
+        { 
 
         }
 
-        public LyricTrigger(float Time, Color StartColor)
+        public Trigger(float Time, T StartValue)
         {
             this.Time = Time;
             Duration = 0;
-            this.StartColor = StartColor;
-            EndColor = StartColor;
+            this.StartValue = StartValue;
+            EndValue = StartValue;
         }
 
-        public LyricTrigger(float Time, float Duration, Color StartColor, Color EndColor)
+        public Trigger(float Time, float Duration, T StartValue, T EndValue)
         {
             this.Time = Time;
             this.Duration = Duration;
-            this.StartColor = StartColor;
-            this.EndColor = EndColor;
+            this.StartValue = StartValue;
+            this.EndValue = EndValue;
         }
 
         public override string ToString()
         {
-            return $"Time: {Time} Duration: {Duration} Start: {StartColor} End: {EndColor}";
+            return $"Time: {Time} Duration: {Duration} Start: {StartValue} End: {EndValue}";
         }
     }
 
 
     internal struct LyricTriggerEmbedData
     {
-        public Dictionary<string, List<LyricTrigger>> triggers = new();
+        public Dictionary<string, List<Trigger<Color>>> colorTriggers = new();
+        public Dictionary<string, Color32> colorKeys = new();
+        public Dictionary<string, List<Trigger<float>>> setTriggers = new();
+        public Dictionary<string, List<Trigger<Vector4>>> offsetTriggers = new();
 
         public LyricTriggerEmbedData()
         {
-            triggers = new();
+            colorTriggers = new();
+            setTriggers = new();
+            offsetTriggers = new();
         }
 
-        public LyricTriggerEmbedData(Dictionary<string, List<LyricTrigger>> dict)
+        public LyricTriggerEmbedData(Dictionary<string, Color32> colorKeys, 
+            Dictionary<string, List<Trigger<Color>>> colorDict, 
+            Dictionary<string, List<Trigger<float>>> setDict, 
+            Dictionary<string, List<Trigger<Vector4>>> offsetDict)
         {
-            triggers = dict;
+            this.colorKeys = colorKeys;
+            colorTriggers = colorDict;
+            setTriggers = setDict;
+            offsetTriggers = offsetDict;
         }
 
-        public void AddTrigger(string key, LyricTrigger trigger)
+        public LyricTriggerEmbedData(Dictionary<string, Color32> colorKeys, 
+            Dictionary<Color32, List<Trigger<Color>>> colorDict, 
+            Dictionary<string, List<Trigger<float>>> setDict, 
+            Dictionary<Color32, List<Trigger<Vector4>>> offsetDict)
         {
-            triggers ??= new();
+            this.colorKeys = colorKeys;
 
-            if (!triggers.ContainsKey(key))
+            colorTriggers = new();
+            foreach(var pair in colorDict)
             {
-                triggers[key] = new();
+                colorTriggers.Add(ColorUtility.ToHtmlStringRGBA(pair.Key), pair.Value);
             }
 
-            triggers[key].Add(trigger);
-        }
+            setTriggers = setDict;
 
-        public void AddTriggers(string key, List<LyricTrigger> triggers)
-        {
-            for (int i = 0; i < triggers.Count; i++)
+            offsetTriggers = new();
+            foreach (var pair in offsetDict)
             {
-                AddTrigger(key, triggers[i]);
+                offsetTriggers.Add(ColorUtility.ToHtmlStringRGBA(pair.Key), pair.Value);
             }
         }
     }

@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 
 namespace ColoredLyrics
@@ -32,6 +30,14 @@ namespace ColoredLyrics
         public static Color32 WithA(this Color32 col, byte a)
         {
             return new Color32(col.r, col.g, col.b, a);
+        }
+
+        public static UnityEngine.Color LerpHSL(UnityEngine.Color a, UnityEngine.Color b, float t)
+        {
+            a.ToHSLA();
+            b.ToHSLA();
+            Vector4 h = Vector4.Lerp(a, b, t);
+            return UnityEngine.Color.HSVToRGB(h.x, h.y, h.z).WithA(h.w);
         }
 
         public static byte Remap(this byte value, byte fromMin, byte fromMax, byte toMin, byte toMax)

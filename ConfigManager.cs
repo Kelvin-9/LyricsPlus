@@ -31,7 +31,8 @@ namespace ColoredLyrics
 
         Dictionary<string, object> defaultShaderParams = new();
 
-        public static CustomGroup quickModGroup;
+        public static CustomGroup? quickModGroup;
+        public static CustomButton? openLyricFileButton;
 
         public static ColoredLyricsConfig config;
 
@@ -300,7 +301,7 @@ namespace ColoredLyrics
             UIHelper.RegisterMenuInModSettingsRoot("ColoredLyrics_ModSettings_Name", page);
         }
 
-        static readonly Dictionary<string, object> embedShaderParams = new();
+        static Dictionary<string, object> embedShaderParams = new();
         static LyricConfig embedConfig = new();
         static UnityEngine.Color DEFAULT_EMBED_FACECOLOR = new(1, 1, 1, 1);
         static UnityEngine.Color DEFAULT_EMBED_OUTLINECOLOR = new(0, 0, 0, 1);
@@ -497,15 +498,15 @@ namespace ColoredLyrics
                     group.Transform,
                     "EmbedSlant",
                     "ColoredLyrics_ModSettings_Slant",
-                    0,
+                    20,
                     v =>
                     {
-                        embedConfig.slant = Mathf.Clamp01(v / 100f);  // -1 = no slant, 0 = default, 1 = epic slant
+                        embedConfig.slant = Mathf.Clamp01(v / 100f);  // 0 = no slant, 0.2 = default, 1 = epic slant
                     },
-                    () => new IntRange(-100, 101),
+                    () => new IntRange(0, 101),
                     v => v.ToString()
                 );
-                int startEmbedSlant = 0;
+                int startEmbedSlant = 20;
                 embedSlant.SetCurrentValue(startEmbedSlant);
                 syncUI.AddUI("embedSlant", embedSlant, startEmbedSlant);
 
@@ -517,7 +518,7 @@ namespace ColoredLyrics
                     0,
                     v =>
                     {
-                        embedConfig.textboxSize = Mathf.Clamp01(v / 100f);  // 0 = unchanged, 1 = largest
+                        embedConfig.textboxSize = Mathf.Clamp01(v / 100f);  // 0 = unchanged, 1 = effectively unbounded textbox
                     },
                     () => new IntRange(0, 101),
                     v => v.ToString()
@@ -525,33 +526,56 @@ namespace ColoredLyrics
                 int startEmbedTextboxSize = 0;
                 embedTextboxSize.SetCurrentValue(startEmbedTextboxSize);
                 syncUI.AddUI("embedTextboxSize", embedTextboxSize, 0);
-
+                
 
                 // APPLY //
                 UIHelper.CreateButton(
                     group.Transform,
-                    "Apply",
+                    "ApplyEmbedLyricSettings",
                     "ColoredLyrics_ModSettings_Apply",
                     () =>
                     {
-                        EmbeddedDataManager.SaveShaderParametersForTrack(EmbeddedDataManager.currentFile, new LyricShaderEmbedData(embedShaderParams));
-                        EmbeddedDataManager.SetLyricConfigForTrack(EmbeddedDataManager.currentFile, embedConfig);
+                        //EmbeddedDataManager.SaveShaderParametersForTrack(EmbeddedDataManager.currentFile, new LyricConfig(embedShaderParams));
+                        embedConfig.SetParameters(embedShaderParams);
+                        EmbeddedDataManager.SetLyricConfigForFile(EmbeddedDataManager.currentFile, embedConfig);
                     }
                 );
 
-                // APPLY //
-                UIHelper.CreateButton(
+                // TRIGGER FILE //
+                openLyricFileButton = UIHelper.CreateButton(
                     group.Transform,
-                    "Debug Apply",
-                    "ColoredLyrics_ModSettings_DebugApply",
+                    "CreateLyricTriggerButton",
+                    "ColoredLyrics_ModSettings_CreateTriggerFile",
                     () =>
                     {
-                        EmbeddedDataManager.CreateLyricTriggerFile(EmbeddedDataManager.currentFile);
+                        EmbeddedDataManager.CreateLyricTriggerFileForCurrentTrack();
+                        EmbeddedDataManager.Reload();
+                    }
+                );
+
+                UIHelper.CreateButton(
+                    group.Transform,
+                    "EmbedLyricTriggerButton",
+                    "ColoredLyrics_ModSettings_EmbedTriggerFile",
+                    () =>
+                    {
+                        if (!EmbeddedDataManager.hasEmbeddedData)
+                        {
+                            Debug.Log("No embedded data, embedding default embed settings first");
+
+                            // First embed shader params if it doesn't have any already
+                            //EmbeddedDataManager.SaveShaderParametersForTrack(EmbeddedDataManager.currentFile, new LyricShaderEmbedData(embedShaderParams));
+                            EmbeddedDataManager.SetLyricConfigForFile(EmbeddedDataManager.currentFile, embedConfig);
+                        }
+
+                        EmbeddedDataManager.Reload(); // Reloads triggers just in case trigger file was just created / changed
+                        EmbeddedDataManager.SaveTriggerDataForTrack(EmbeddedDataManager.currentFile, new LyricTriggerEmbedData(LyricTriggers.LUTKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers));
                     }
                 );
 
                 quickModGroup = group;
                 quickModGroup.GameObject.SetActive(EmbeddedDataManager.currentTrack != null);
+
                 EmbeddedDataManager.SyncAllQuickmodEmbedUI();
             });
         }
