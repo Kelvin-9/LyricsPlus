@@ -152,4 +152,48 @@ namespace ColoredLyrics
             return (directory, filename);
         }
     }
+
+    // Witness
+    public struct Vector5
+    {
+        public float x;
+        public float y;
+        public float z;
+        public float w;
+        public float v;
+
+        public static Vector5 zero = new(0, 0, 0, 0, 0);
+
+        public Vector5()
+        {
+
+        }
+
+        public Vector5(float x, float y, float z, float w, float v)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+            this.v = v;
+        }
+
+        public Vector5(Vector4 vec, float v)
+        {
+            x = vec.x;
+            y = vec.y;
+            z = vec.z;
+            w = vec.w;
+            this.v = v;
+        }
+
+        public Vector5(Vector3 vec, float w, float v)
+        {
+            x = vec.x;
+            y = vec.y;
+            z = vec.z;
+            this.w = w;
+            this.v = v;
+        }
+    }
 }

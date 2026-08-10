@@ -12,9 +12,9 @@ namespace ColoredLyrics
         private readonly Dictionary<Color32, List<Trigger<Color>>> colorTriggers = [];
         private readonly Dictionary<string, List<Trigger<float>>> setTriggers = [];
         private readonly Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers = [];
+        private readonly Dictionary<Color32, List<Trigger<Vector5>>> rotateTriggers = [];
 
-        List<string[]> lines = [];
-        int pc = 0;
+        readonly List<string[]> lines = [];
 
         readonly Dictionary<string, int> functionPositions = [];
         readonly List<float> functionTimeOffset = [];
@@ -29,13 +29,15 @@ namespace ColoredLyrics
             out Dictionary<string, Color32> colorKeys,
             out Dictionary<Color32, List<Trigger<Color>>> colorTriggers,
             out Dictionary<string, List<Trigger<float>>> setTriggers,
-            out Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers
+            out Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers,
+            out Dictionary<Color32, List<Trigger<Vector5>>> rotateTriggers
             )
         {
             colorTriggers = [];
             setTriggers = [];
             colorKeys = [];
             offsetTriggers = [];
+            rotateTriggers = [];
             (string? directory, string? fileName) = Util.GetDirectoryFromPlayData(file);
             if (directory == null || fileName == null)
             {
@@ -61,6 +63,7 @@ namespace ColoredLyrics
             setTriggers = this.setTriggers;
             colorKeys = this.colorKeys;
             offsetTriggers = this.offsetTriggers;
+            rotateTriggers = this.rotateTriggers;
             return true;
         }
 
@@ -103,6 +106,9 @@ namespace ColoredLyrics
                 case "OFFSET":
                     ParseOFFSET(tokens);
                     break;
+                case "ROTATE":
+                    ParseROTATE(tokens);
+                    break;
                 case "REPEAT":
                     ParseREPEAT(tokens, lineNum);
                     break;
@@ -110,7 +116,7 @@ namespace ColoredLyrics
                     return ParseENDREPEAT(tokens, lineNum);
                 case "FUNCTION":
                     return ParseFUNCTION(tokens, lineNum);
-                case "END":
+                case "ENDFUNCTION":
                     return ParseEND(tokens, lineNum);
                 case "CALL":
                     return ParseCALL(tokens, lineNum);
@@ -273,7 +279,7 @@ namespace ColoredLyrics
             if (tokens.Length < 4)
             {
                 Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nOFFSET [LUTindex] [time] [startOffset] <[endOffset] [duration] [easing]>\ne.g. OFFSET Color1 10.02 (0,0,0) (0,0,10) 2.1 EASEIN");
+                Debug.LogError($"Usage:\nOFFSET [LUTindex] [time] [startOffset] <[endOffset] [duration] [easing]>\ne.g. OFFSET Color1 10.02 (0,0,0) (0,0,10) 2.1 EaseInSine");
                 return;
             }
 
@@ -323,7 +329,74 @@ namespace ColoredLyrics
                 }
 
                 Vector4 value = ((Vector4)StartValue.Value).WithW(0);
-                offsetTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, 0, value, value));
+                offsetTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, value));
+            }
+        }
+
+        /// - ROTATE [LUTindex] [time] [axis] [degrees] [pivotIndex] <[endDirction] [endDegrees] [easing]>
+        ///     Rotates all characters with [LUTindex] at [time] around [axis] and the character [pivotIndex] by [degrees]
+        void ParseROTATE(string[] tokens)
+        {
+            if (tokens.Length < 4)
+            {
+                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\nROTATE [LUTindex] [time] [axis] [degrees] [pivotIndex] <[endAxis] [endDegrees] [duration]> <[easing]>\ne.g. ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 EaseInOutQuint\n(this one's a doozy sorry)");
+                return;
+            }
+
+            string LUTindex = tokens[1];
+            string LUTkey = $"LUT_{LUTindex}";
+            if (!colorKeys.ContainsKey(LUTkey))
+            {
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with [LUT <name> #<color>]");
+                return;
+            }
+
+            float? time = ParseTime(tokens[2]);
+            if (time == null)
+            {
+                Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                return;
+            }
+
+            Color32 LUTfrom = colorKeys[LUTkey];
+            if (!rotateTriggers.ContainsKey(LUTfrom))
+            {
+                rotateTriggers[LUTfrom] = [];
+            }
+
+            Vector3? StartAxis = ParseVector3(tokens[3]);
+            float? degrees = ParseFloat(tokens[4]);
+            int? pivotInd = ParseInt(tokens[5]);
+            if (StartAxis == null || degrees == null || pivotInd == null)
+            {
+                Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                return;
+            }
+
+            if (tokens.Length >= 9)  // Optional 10th parameter for easing, defaults to LINEAR
+            {
+                Vector3? EndAxis = ParseVector3(tokens[6]);
+                float? endDegrees = ParseFloat(tokens[7]);
+                float? duration = ParseFloat(tokens[8]);
+                int ease = tokens.Length > 8 ? (int)Easing.ParseEase(tokens[9]) : 0;
+                if (EndAxis == null || endDegrees == null || duration == null)
+                {
+                    Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                    return;
+                }
+
+                rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(
+                    time.Value, 
+                    duration.Value, 
+                    new Vector5(StartAxis.Value, degrees.Value, pivotInd.Value),              // Start value packs pivot
+                    new Vector5(EndAxis.Value, endDegrees.Value, ease)                        // End value packs ease
+                ));
+
+            }
+            else if (tokens.Length >= 6)
+            {
+                rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(time.Value, new Vector5(StartAxis.Value, degrees.Value, pivotInd.Value)));
             }
         }
 
@@ -388,11 +461,12 @@ namespace ColoredLyrics
         }
 
         // FUNCTION [name]
+        // ENDFUNCTION
         int ParseFUNCTION(string[] tokens, int lineNum)
         {
             if (tokens.Length < 2)
             {
-                Debug.LogError($"FUNCTION {tokens[1]} was does not have name defined!\nUsage:\nFUNCTION [name]\n...commands...\nEND");
+                Debug.LogError($"FUNCTION {tokens[1]} was does not have name defined!\nUsage:\nFUNCTION [name]\n...commands...\nENDFUNCTION");
             }
 
             int functionPos = lineNum;
@@ -409,7 +483,7 @@ namespace ColoredLyrics
                     case "FUNCTION":
                         depth++;
                         break;
-                    case "END":
+                    case "ENDFUNCTION":
                         depth--;
                         break;
                     default:
@@ -425,7 +499,7 @@ namespace ColoredLyrics
 
             if (depth > 0)
             {
-                Debug.LogError($"FUNCTION {tokens[1]} was does not have END defined!\nUsage:\nFUNCTION [name]\n...commands...\nEND");
+                Debug.LogError($"FUNCTION {tokens[1]} was does not have ENDFUNCTION defined!\nUsage:\nFUNCTION [name]\n...commands...\nENDFUNCTION");
                 return lineNum;
             }
 

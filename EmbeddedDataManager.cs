@@ -79,20 +79,20 @@ namespace ColoredLyrics
 
             if (!CustomChartHelper.TryGetCustomData(file, TRIGGER_KEY, out LyricTriggerEmbedData t)) return false;
 
-            LyricTriggers.LoadTriggers(t.colorTriggers, t.colorKeys, t.setTriggers, t.offsetTriggers);
+            LyricTriggers.LoadTriggers(t);
             return true;
         }
 
         public static bool LoadTriggersFromLyrFile(PlayableTrackData playableData)
         {
             TriggerFileParser parser = new();
-            bool sucessful = parser.LoadTriggersFromFile(playableData, out var colorKeys, out var colorTriggers, out var setTriggers, out var offsetTriggers);
+            bool sucessful = parser.LoadTriggersFromFile(playableData, out var colorKeys, out var colorTriggers, out var setTriggers, out var offsetTriggers, out var rotationTriggers);
             if (!sucessful || (colorTriggers.Count == 0 && setTriggers.Count == 0))
             {
                 return false;
             }
 
-            LyricTriggers.LoadTriggers(colorTriggers, colorKeys, setTriggers, offsetTriggers);
+            LyricTriggers.LoadTriggers(colorTriggers, colorKeys, setTriggers, offsetTriggers, rotationTriggers);
 
             return true;
         }
@@ -128,6 +128,11 @@ namespace ColoredLyrics
         #       Example:
         #           OFFSET color1 30.5 (0,0,0) (0,4,-10) 2 ElasticInOut            // All text with same color tag as color1 gets moved from (0,0,0) to (0,4,-10) over 2 seconds while using the ElasticInOut animation curve
         #
+        #   ROTATE [LUTindex] [time] [axis] [degrees] [pivotIndex] <[endAxis] [endDegrees] [duration]> <[easing]>
+        #       Example: 
+        #           ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 EaseInOutQuint
+        #           (this one's a doozy sorry)
+        #
         #   Note that parameters in <> are optional in this guide
         #
         ///  ------------------------------------
@@ -158,7 +163,7 @@ namespace ColoredLyrics
         #
         #   FUNCTION [functionName]
         #       (commands go here)
-        #   END
+        #   ENDFUNCTION
         #
         #   CALL [functionName] [time]
         #       - All commands in the function will have their time value increased by [time]
@@ -197,7 +202,13 @@ namespace ColoredLyrics
             // Open file
             try
             {
-                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(path)
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"\"{path}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
             }
             catch (Exception e) 
             {
@@ -291,6 +302,17 @@ namespace ColoredLyrics
             }
 
             lyricConfig.SetLUTOffset(key, offset);
+        }
+
+        public static void ModifyRotation(Color32 key, Vector5 rotation)
+        {
+            if (lyricConfig == null)
+            {
+                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+                return;
+            }
+
+            lyricConfig.SetLUTRotation(key, rotation);
         }
 
         public static void SetVariable(string key, float value)
@@ -398,6 +420,7 @@ namespace ColoredLyrics
         // LUT
         private Dictionary<Color32, Color32> lutColor  = [];
         private Dictionary<Color32, Vector3> lutOffset = [];
+        private Dictionary<Color32, Vector5> lutRotation = [];
 
         public List<ShaderParameter> parameters = [];
 
@@ -476,6 +499,11 @@ namespace ColoredLyrics
             lutOffset[key] = offset;
         }
 
+        public void SetLUTRotation(Color32 key, Vector5 rotation)
+        {
+            lutRotation[key] = rotation;
+        }
+
         public void SetVariable(string key, float value)
         {
             switch (key.ToUpper()) 
@@ -508,6 +536,11 @@ namespace ColoredLyrics
         public Vector3 EvaluateLUTOffset(Color32 key)
         {
             return lutOffset.GetValueOrDefault(key.WithA(255), Vector3.zero);
+        }
+
+        public Vector5 EvaluateLUTRotation(Color32 key)
+        {
+            return lutRotation.GetValueOrDefault(key.WithA(255), Vector5.zero);
         }
     }
 }

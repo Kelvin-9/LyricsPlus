@@ -29,33 +29,6 @@ namespace ColoredLyrics
             __instance.parentText.fontSharedMaterial = newMat;
         }
 
-
-        // Remove unneeded callback
-        //[HarmonyPatch(typeof(BackgroundLyricLineDisplay), "OnFirstActivatingBackgroundAsset")]
-        //[HarmonyPostfix]
-        //internal static void BackgroundLyricLineDisplay_OnFirstActivatingBackgroundAssetPostfix(BackgroundLyricLineDisplay __instance)
-        //{
-        //    TMP_Text textComponent = __instance.textRenderer;
-        //    if (textComponent == null) return;
-
-        //    var privateMethodInfo = AccessTools.Method(typeof(BackgroundLyricLineDisplay), "PreRender");
-        //    if (privateMethodInfo == null) return;
-
-        //    var targetDelegate = Delegate.CreateDelegate(typeof(Action<TMP_TextInfo>), __instance, privateMethodInfo) as Action<TMP_TextInfo>;
-        //    var eventField = AccessTools.Field(typeof(TMP_Text), "OnPreRenderText");
-
-        //    if (eventField != null && targetDelegate != null)
-        //    {
-        //        Action<TMP_TextInfo> currentDelegate = (Action<TMP_TextInfo>)eventField.GetValue(textComponent);
-
-        //        if (currentDelegate != null)
-        //        {
-        //            Delegate updatedDelegate = Delegate.Remove(currentDelegate, targetDelegate);
-        //            eventField.SetValue(textComponent, updatedDelegate);
-        //        }
-        //    }
-        //}
-
         // Set animation properties 
         static bool _assignedDefault = false;
         static BackgroundLyricLineDisplay.AnimTimingSettings defaultAnim;
@@ -143,6 +116,18 @@ namespace ColoredLyrics
         {
             if (textInfo.textComponent.fontSharedMaterial.shader != ModBase.textShader) return;
 
+            Transform transform = textInfo.textComponent.transform;
+            Vector3[] pivots = new Vector3[textInfo.characterCount];
+            for (int i = 0; i < textInfo.characterCount; i++)
+            {
+                pivots[i] = (
+                    textInfo.characterInfo[i].vertex_BL.position +
+                    textInfo.characterInfo[i].vertex_BR.position +
+                    textInfo.characterInfo[i].vertex_TL.position +
+                    textInfo.characterInfo[i].vertex_TR.position
+                ) / 4f;
+            }
+
             for (int i = 0; i < textInfo.characterCount; i++)
             {
                 ref TMP_CharacterInfo ptr = ref textInfo.characterInfo[i];
@@ -166,20 +151,35 @@ namespace ColoredLyrics
                     col = EmbeddedDataManager.lyricConfig.EvaluateLUTColor(key);
 
                     // LUT for offset triggers
+                    Vector3 p0 = textInfo.meshInfo[matInd].vertices[vert + 0];
+                    Vector3 p1 = textInfo.meshInfo[matInd].vertices[vert + 1];
+                    Vector3 p2 = textInfo.meshInfo[matInd].vertices[vert + 2];
+                    Vector3 p3 = textInfo.meshInfo[matInd].vertices[vert + 3];
+
                     Vector3 offset = EmbeddedDataManager.lyricConfig.EvaluateLUTOffset(key);
 
                     Vector3 up = ptr.vertex_TL.position - ptr.vertex_BL.position;
                     Vector3 right = ptr.vertex_TR.position - ptr.vertex_TL.position;
                     Vector3 forward = Vector3.Cross(right, up);
                     Vector3 worldOffset =
-                        right.normalized * offset.x +
-                        up.normalized * offset.y +
+                        right.normalized   * offset.x +
+                        up.normalized      * offset.y +
                         forward.normalized * offset.z;
 
-                    textInfo.meshInfo[matInd].vertices[vert + 0] += worldOffset;
-                    textInfo.meshInfo[matInd].vertices[vert + 1] += worldOffset;
-                    textInfo.meshInfo[matInd].vertices[vert + 2] += worldOffset;
-                    textInfo.meshInfo[matInd].vertices[vert + 3] += worldOffset;
+                    // LUT for rotation
+                    Vector5 rotInfo = EmbeddedDataManager.lyricConfig.EvaluateLUTRotation(key);
+                    Vector3 dir = new(rotInfo.x, rotInfo.y, rotInfo.z);
+                    Vector3 axis =
+                        right.normalized   * dir.x +
+                        up.normalized      * dir.y +
+                        forward.normalized * dir.z;
+                    float degrees = rotInfo.w;
+                    int pivotIndex = Mathf.Clamp((int)rotInfo.v, 0, pivots.Length - 1);
+
+                    textInfo.meshInfo[matInd].vertices[vert + 0] = RotatePointAroundPivot(p0, pivots[pivotIndex], axis, degrees) + worldOffset;
+                    textInfo.meshInfo[matInd].vertices[vert + 1] = RotatePointAroundPivot(p1, pivots[pivotIndex], axis, degrees) + worldOffset;
+                    textInfo.meshInfo[matInd].vertices[vert + 2] = RotatePointAroundPivot(p2, pivots[pivotIndex], axis, degrees) + worldOffset;
+                    textInfo.meshInfo[matInd].vertices[vert + 3] = RotatePointAroundPivot(p3, pivots[pivotIndex], axis, degrees) + worldOffset;
                 }
 
                 // Grabbing that tint / alpha data modified by Prerender
@@ -191,6 +191,14 @@ namespace ColoredLyrics
                 textInfo.meshInfo[matInd].colors32[vert + 2] = col;
                 textInfo.meshInfo[matInd].colors32[vert + 3] = col;
             }
+        }
+
+        static Vector3 RotatePointAroundPivot(Vector3 point, Vector3 pivot, Vector3 axis, float degrees)
+        {
+            Vector3 dir = point - pivot;
+            Quaternion rotation = Quaternion.AngleAxis(degrees, axis.normalized);
+
+            return pivot + (rotation * dir);
         }
 
         [HarmonyPatch(typeof(TextMeshPro), "GenerateTextMesh")]

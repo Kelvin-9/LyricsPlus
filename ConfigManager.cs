@@ -569,7 +569,10 @@ namespace ColoredLyrics
                         }
 
                         EmbeddedDataManager.Reload(); // Reloads triggers just in case trigger file was just created / changed
-                        EmbeddedDataManager.SaveTriggerDataForTrack(EmbeddedDataManager.currentFile, new LyricTriggerEmbedData(LyricTriggers.LUTKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers));
+                        EmbeddedDataManager.SaveTriggerDataForTrack(
+                            EmbeddedDataManager.currentFile, 
+                            new LyricTriggerEmbedData(LyricTriggers.LUTKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers, LyricTriggers.rotateTriggers)
+                        );
                     }
                 );
 
