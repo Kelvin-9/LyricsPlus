@@ -62,7 +62,7 @@ namespace ColoredLyrics
             Debug.Log("Shaders initialized");
         }
 
-        static Dictionary<TMP_FontAsset, Material> defaultMatMap = new();
+        static Dictionary<TMP_FontAsset, Material> defaultMatMap = [];
         public static Material? GetTextMaterial(TMP_FontAsset font)
         {
             // Prefer chart specific mat

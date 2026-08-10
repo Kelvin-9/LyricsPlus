@@ -29,7 +29,7 @@ namespace ColoredLyrics
         private static ConfigEntry<float> _defaultFadeOutRatio;
 
 
-        Dictionary<string, object> defaultShaderParams = new();
+        Dictionary<string, object> defaultShaderParams = [];
 
         public static CustomGroup? quickModGroup;
         public static CustomButton? openLyricFileButton;
@@ -301,7 +301,7 @@ namespace ColoredLyrics
             UIHelper.RegisterMenuInModSettingsRoot("ColoredLyrics_ModSettings_Name", page);
         }
 
-        static Dictionary<string, object> embedShaderParams = new();
+        static Dictionary<string, object> embedShaderParams = [];
         static LyricConfig embedConfig = new();
         static UnityEngine.Color DEFAULT_EMBED_FACECOLOR = new(1, 1, 1, 1);
         static UnityEngine.Color DEFAULT_EMBED_OUTLINECOLOR = new(0, 0, 0, 1);
@@ -594,7 +594,7 @@ namespace ColoredLyrics
         public float fadeInRatio;
         public float fadeOutRatio;
 
-        public Dictionary<string, object> shaderParams = new();
+        public Dictionary<string, object> shaderParams = [];
 
         public ColoredLyricsConfig()
         {

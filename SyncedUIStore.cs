@@ -7,8 +7,8 @@ namespace ColoredLyrics
 
     internal class SyncedUIStore
     {
-        Dictionary<string, KeyValuePair<CustomMultiChoice, int>> multiChoice = new();
-        Dictionary<string, KeyValuePair<CustomInputField, string>> textInput = new();
+        Dictionary<string, KeyValuePair<CustomMultiChoice, int>> multiChoice = [];
+        Dictionary<string, KeyValuePair<CustomInputField, string>> textInput = [];
 
 
         public void AddUI(string key, CustomMultiChoice uiElement, int defaultVal = 0)

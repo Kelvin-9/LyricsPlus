@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -9,10 +8,16 @@ namespace ColoredLyrics
 {
     internal class TriggerFileParser
     {
-        private Dictionary<string, Color32> colorKeys = [];
-        private Dictionary<Color32, List<Trigger<Color>>> colorTriggers = [];
-        private Dictionary<string, List<Trigger<float>>> setTriggers = [];
-        private Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers = [];
+        private readonly Dictionary<string, Color32> colorKeys = [];
+        private readonly Dictionary<Color32, List<Trigger<Color>>> colorTriggers = [];
+        private readonly Dictionary<string, List<Trigger<float>>> setTriggers = [];
+        private readonly Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers = [];
+
+        List<string[]> lines = [];
+        int pc = 0;
+
+        readonly Dictionary<string, int> functionPositions = [];
+        readonly List<float> functionTimeOffset = [];
 
         public TriggerFileParser()
         {
@@ -21,16 +26,16 @@ namespace ColoredLyrics
         }
 
         internal bool LoadTriggersFromFile(PlayableTrackData file,
-            out Dictionary<string, Color32>? colorKeys,
-            out Dictionary<Color32, List<Trigger<Color>>>? colorTriggers,
-            out Dictionary<string, List<Trigger<float>>>? setTriggers,
-            out Dictionary<Color32, List<Trigger<Vector4>>>? offsetTriggers
+            out Dictionary<string, Color32> colorKeys,
+            out Dictionary<Color32, List<Trigger<Color>>> colorTriggers,
+            out Dictionary<string, List<Trigger<float>>> setTriggers,
+            out Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers
             )
         {
-            colorTriggers = null;
-            setTriggers = null;
-            colorKeys = null;
-            offsetTriggers = null;
+            colorTriggers = [];
+            setTriggers = [];
+            colorKeys = [];
+            offsetTriggers = [];
             (string? directory, string? fileName) = Util.GetDirectoryFromPlayData(file);
             if (directory == null || fileName == null)
             {
@@ -43,12 +48,12 @@ namespace ColoredLyrics
                 return false;
             }
 
-            List<string> lines = File.ReadAllLines(lyricPath).ToList();
+            var fullLines = File.ReadAllLines(lyricPath).ToList();
+            PreprocessLines(fullLines);
 
-            PreprocessTriggerFile(ref lines);
-            for (int i = 0; i < lines.Count; i++)
+            for (int pc = 0; pc < lines.Count; pc++)
             {
-                ParseLine(lines[i]);
+                pc = ParseLine(lines[pc], pc);
             }
 
 
@@ -59,46 +64,30 @@ namespace ColoredLyrics
             return true;
         }
 
-        static void PreprocessTriggerFile(ref List<string> lines)
+        void PreprocessLines(List<string> fullLines)
         {
-            // Remove empty lines and comments
-            for (int i = lines.Count - 1; i >= 0; i--)
+            // Remove comments, uppercase strings and split into tokens
+            for (int pc = 0; pc < fullLines.Count; pc++)
             {
-                lines[i] = lines[i].Trim().ToUpper();
-                if (lines[i].Length == 0 || lines[i].StartsWith("#") || lines[i].StartsWith("//"))
+                fullLines[pc] = fullLines[pc].Trim().ToUpper();
+                if (fullLines[pc].Length == 0 || fullLines[pc].StartsWith("#") || fullLines[pc].StartsWith("//"))
                 {
-                    lines.RemoveAt(i);
+                    lines.Add([]); // Empty line
                     continue;
                 }
-            }
 
-            // Expand REPEATs
-            for (int i = 0; i < lines.Count; i++)
-            {
-                // TODO: IMPLEMENT REPEAT TRIGGERS
+                lines.Add(fullLines[pc].Split(' ', System.StringSplitOptions.RemoveEmptyEntries));
             }
         }
 
-        /// <summary>
-        /// COMMANDS:
-        /// - LUT [LUTindex] [color]
-        ///     Binds a color to a LUT index
-        /// - COLOR [LUTindex] [time] [startValue] [endValue] [duration]
-        /// - COLOR [LUTindex] [time] [color]
-        ///     Sets the color of a binded LUT entry
-        /// - SET [variable] [time] [startValue] [endValue] [duration]
-        /// - SET [variable] [time] [value]
-        ///     Sets a variable to a decimal value
-        /// 
-        /// - OFFSET [LUTindex] [time] [startOffset] <[endOffset] [duration] [easing]>
-        ///     Offsets the position of all text with the given [LUTindex]
-        ///     Give the offsets in the form of x,y,z or (x,y,z)
-        /// </summary>
-        void ParseLine(string line)
+        int ParseLine(string[] tokens, int lineNum)
         {
-            //Debug.Log($"Parsing {line}");
+            if (tokens.Length <= 0)
+            {
+                return lineNum;
+            }
 
-            string[] tokens = line.Split([' ']);
+            //Debug.Log($"Parsing {string.Join(' ', tokens)}");
             string command = tokens[0];
             switch (command)
             {
@@ -114,9 +103,22 @@ namespace ColoredLyrics
                 case "OFFSET":
                     ParseOFFSET(tokens);
                     break;
+                case "REPEAT":
+                    ParseREPEAT(tokens, lineNum);
+                    break;
+                case "ENDREPEAT":
+                    return ParseENDREPEAT(tokens, lineNum);
+                case "FUNCTION":
+                    return ParseFUNCTION(tokens, lineNum);
+                case "END":
+                    return ParseEND(tokens, lineNum);
+                case "CALL":
+                    return ParseCALL(tokens, lineNum);
                 default:
                     break;
             }
+
+            return lineNum;
         }
 
         /// LUT [LUTindex] [color]
@@ -148,15 +150,13 @@ namespace ColoredLyrics
                 if (pair.Key == LUTkey)
                 {
                     Debug.LogWarning($"LUT {tokens[1]} is declared multiple times");
-                    break;
                 }
             }
 
             colorKeys[LUTkey] = (Color32)col;
         }
 
-        /// - COLOR [LUTindex] [time] [StartValue] [EndValue] [duration]
-        /// - COLOR [LUTindex] [time] [Color]
+        /// - COLOR [LUTindex] [time] [StartValue] <[EndValue] [duration]>
         ///     Sets the color of a binded LUT entry
         void ParseCOLOR(string[] tokens)
         {
@@ -167,7 +167,7 @@ namespace ColoredLyrics
                 return;
             }
 
-            float? time = ParseFloat(tokens[2]);
+            float? time = ParseTime(tokens[2]);
             if (time == null)
             {
                 Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
@@ -185,7 +185,7 @@ namespace ColoredLyrics
             Color32 LUTfrom = colorKeys[LUTkey];
             if (!colorTriggers.ContainsKey(LUTfrom))
             {
-                colorTriggers[LUTfrom] = new();
+                colorTriggers[LUTfrom] = [];
             }
 
             if (tokens.Length >= 6)
@@ -215,8 +215,7 @@ namespace ColoredLyrics
             }
         }
 
-        /// - SET [variable] [time] [startValue] [endValue] [duration]
-        /// - SET [variable] [time] [value]
+        /// - SET [variable] [time] [startValue] <[endValue] [duration]>
         void ParseSET(string[] tokens)
         {
             if (tokens.Length < 4)
@@ -227,7 +226,7 @@ namespace ColoredLyrics
             }
 
             string variableName = tokens[1];
-            float? time = ParseFloat(tokens[2]);
+            float? time = ParseTime(tokens[2]);
             if (time == null)
             {
                 Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
@@ -236,7 +235,7 @@ namespace ColoredLyrics
 
             if (!setTriggers.ContainsKey(variableName))
             {
-                setTriggers[variableName] = new();
+                setTriggers[variableName] = [];
             }
 
             if (tokens.Length >= 6)
@@ -278,7 +277,7 @@ namespace ColoredLyrics
                 return;
             }
 
-            float? time = ParseFloat(tokens[2]);
+            float? time = ParseTime(tokens[2]);
             if (time == null)
             {
                 Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
@@ -296,7 +295,7 @@ namespace ColoredLyrics
             Color32 LUTfrom = colorKeys[LUTkey];
             if (!offsetTriggers.ContainsKey(LUTfrom))
             {
-                offsetTriggers[LUTfrom] = new();
+                offsetTriggers[LUTfrom] = [];
             }
 
             if (tokens.Length >= 6)  // Optional 7th parameter for easing, defaults to LINEAR
@@ -304,7 +303,7 @@ namespace ColoredLyrics
                 Vector3? StartValue = ParseVector3(tokens[3]);
                 Vector3? EndValue = ParseVector3(tokens[4]);
                 float? duration = ParseFloat(tokens[5]);
-                float ease = tokens.Length > 6 ? (int)Easing.ParseEase(tokens[6]) : 0;
+                int ease = tokens.Length > 6 ? (int)Easing.ParseEase(tokens[6]) : 0;
                 if (StartValue == null || EndValue == null || duration == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
@@ -326,6 +325,187 @@ namespace ColoredLyrics
                 Vector4 value = ((Vector4)StartValue.Value).WithW(0);
                 offsetTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, 0, value, value));
             }
+        }
+
+
+        int repeatDepth = 0;
+        readonly List<int> repeatCounts = [];
+        readonly List<int> currentRepeatIterations = [];
+        readonly List<int> repeatLineBeginnings = [];
+        readonly List<float> repeatIntervals = [];
+
+        readonly Stack<int> callstack = [];
+        readonly Stack<int> returnstack = [];
+
+        /// - REPEAT [numrepeats] interval [interval]
+        void ParseREPEAT(string[] tokens, int lineNum)
+        {
+            if (tokens.Length < 4)
+            {
+                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\nREPEAT [numRepeats] interval [interval]");
+                return;
+            }
+
+            int? repeats = ParseInt(tokens[1]);
+            float? interval = ParseFloat(tokens[3]);
+            if (interval == null || repeats == null)
+            {
+                Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                return;
+            }
+
+            repeatDepth++;
+            repeatCounts.Add(repeats.Value);
+            repeatIntervals.Add(interval.Value);
+            repeatLineBeginnings.Add(lineNum);
+            currentRepeatIterations.Add(0);
+        }
+
+        int ParseENDREPEAT(string[] tokens, int lineNum)
+        {
+            if (repeatDepth <= 0) 
+            { 
+                Debug.LogError("Unexpected ENDREPEAT");
+                return lineNum;
+            }
+
+            // Keep looping
+            if (++currentRepeatIterations[repeatDepth - 1] != repeatCounts[repeatDepth - 1])
+            {
+                lineNum = repeatLineBeginnings[repeatDepth - 1];
+                return lineNum;
+            }
+
+            // End loop
+            repeatDepth--;
+            repeatCounts.RemoveAt(repeatDepth);
+            currentRepeatIterations.RemoveAt(repeatDepth);
+            repeatIntervals.RemoveAt(repeatDepth);
+            repeatLineBeginnings.RemoveAt(repeatDepth);
+
+            return lineNum;
+        }
+
+        // FUNCTION [name]
+        int ParseFUNCTION(string[] tokens, int lineNum)
+        {
+            if (tokens.Length < 2)
+            {
+                Debug.LogError($"FUNCTION {tokens[1]} was does not have name defined!\nUsage:\nFUNCTION [name]\n...commands...\nEND");
+            }
+
+            int functionPos = lineNum;
+
+            // Move pointer forward until END
+            int depth = 0;
+            int endLine = lineNum + 1;
+            for (int i = lineNum; i < lines.Count; i++)
+            {
+                if (lines[i].Length == 0) continue;
+
+                switch (lines[i][0]) 
+                {
+                    case "FUNCTION":
+                        depth++;
+                        break;
+                    case "END":
+                        depth--;
+                        break;
+                    default:
+                        break;
+                }
+
+                if (depth <= 0)
+                {
+                    endLine = i;
+                    break;
+                }
+            }
+
+            if (depth > 0)
+            {
+                Debug.LogError($"FUNCTION {tokens[1]} was does not have END defined!\nUsage:\nFUNCTION [name]\n...commands...\nEND");
+                return lineNum;
+            }
+
+            functionPositions[tokens[1]] = lineNum;
+            lineNum = endLine;
+
+            return lineNum;
+        }
+
+        int ParseEND(string[] tokens, int lineNum)
+        {
+            // Return to call stack original position
+            if (returnstack.TryPop(out int returnPos))
+            {
+                callstack.Pop();
+                functionTimeOffset.RemoveAt(functionTimeOffset.Count - 1);
+                return returnPos;
+            }
+
+            return lineNum;
+        }
+
+        // CALL [functionName] [time]
+        int ParseCALL(string[] tokens, int lineNum)
+        {
+            if (tokens.Length < 3) 
+            {
+                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\nCALL [functionName] [time]");
+                return lineNum;
+            }
+
+            if (!functionPositions.ContainsKey(tokens[1]))
+            {
+                Debug.LogError($"Function {tokens[1]} does not exist!");
+                return lineNum;
+            }
+
+            int functionPos = functionPositions[tokens[1]];
+
+            // Check for infinite recursion
+            foreach(int lineNo in callstack)
+            {
+                if (lineNo != functionPos) continue;
+
+                Debug.LogError($"Infinite recursion detected! Function call {tokens[1]} aborted.\n Avoid making infinite loops with function calls.");
+                return lineNum;
+            }
+
+            float? time = ParseTime(tokens[2]);
+            if (time == null)
+            {
+                Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                return lineNum;
+            }
+
+            returnstack.Push(lineNum);
+            callstack.Push(functionPos);
+            functionTimeOffset.Add(time.Value);
+            lineNum = functionPos;
+
+            return lineNum;
+        }
+
+        float? ParseTime(string time)
+        {
+            float? t = ParseFloat(time);
+            if (t == null)
+            {
+                return null;
+            }
+
+            float timeOffset = functionTimeOffset.Sum();
+
+            if (repeatDepth <= 0)
+                return t + timeOffset;
+            for (int i = 0; i < repeatDepth; i++)
+                t += repeatIntervals[i] * currentRepeatIterations[i];
+
+            return t + timeOffset;
         }
 
         static float? ParseFloat(string num)
