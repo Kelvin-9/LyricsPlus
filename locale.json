@@ -1,68 +1,68 @@
 {
-  "ColoredLyrics_ModSettings_Name": {
+  "LyricPlus_ModSettings_Name": {
     "en": "Colored Lyrics"
   },
-  "ColoredLyrics_ModSettings_Header": {
+  "LyricPlus_ModSettings_Header": {
     "en": "Colored Lyrics"
   },
-  "ColoredLyrics_ModSettings_Enable": {
+  "LyricPlus_ModSettings_Enable": {
     "en": "Enabled"
   },
-  "ColoredLyrics_ModSettings_EmbeddedOnly": {
+  "LyricPlus_ModSettings_EmbeddedOnly": {
     "en": "Embedded Parameters Only"
   },
-  "ColoredLyrics_ModSettings_EmbeddedOnlyTooltip": {
+  "LyricPlus_ModSettings_EmbeddedOnlyTooltip": {
     "en": "When 'Embedded Parameters Only' is toggled off, charts with no embedded lyric parameters will use this default profile."
   },
-  "ColoredLyrics_ModSettings_FaceSoftness": {
+  "LyricPlus_ModSettings_FaceSoftness": {
     "en": "Softness"
   },
-  "ColoredLyrics_ModSettings_FaceColor": {
+  "LyricPlus_ModSettings_FaceColor": {
     "en": "Tint"
   },
-  "ColoredLyrics_ModSettings_FaceDilate": {
+  "LyricPlus_ModSettings_FaceDilate": {
     "en": "Dilate"
   },
-  "ColoredLyrics_ModSettings_OutlineWidth": {
+  "LyricPlus_ModSettings_OutlineWidth": {
     "en": "Outline Width"
   },
-  "ColoredLyrics_ModSettings_OutlineColor": {
+  "LyricPlus_ModSettings_OutlineColor": {
     "en": "Outline Color"
   },
-  "ColoredLyrics_ModSettings_UnderlayColor": {
+  "LyricPlus_ModSettings_UnderlayColor": {
     "en": "Underlay Color"
   },
-  "ColoredLyrics_ModSettings_DefaultColor": {
+  "LyricPlus_ModSettings_DefaultColor": {
     "en": "Default Color"
   },
-  "ColoredLyrics_ModSettings_FadeInRatio": {
+  "LyricPlus_ModSettings_FadeInRatio": {
     "en": "Fade In"
   },
-  "ColoredLyrics_ModSettings_FadeOutRatio": {
+  "LyricPlus_ModSettings_FadeOutRatio": {
     "en": "Fade Out"
   },
-  "ColoredLyrics_ModSettings_UnspokenWordAlpha": {
+  "LyricPlus_ModSettings_UnspokenWordAlpha": {
     "en": "Unspoken Alpha"
   },
-  "ColoredLyrics_ModSettings_Slant": {
+  "LyricPlus_ModSettings_Slant": {
     "en": "Slant"
   },
-  "ColoredLyrics_ModSettings_TextboxSize": {
+  "LyricPlus_ModSettings_TextboxSize": {
     "en": "Textbox Size"
   },
-  "ColoredLyrics_QuickSettings_Header": {
+  "LyricPlus_QuickSettings_Header": {
     "en": "Embed Lyric Settings"
   },
-  "ColoredLyrics_ModSettings_Apply": {
+  "LyricPlus_ModSettings_Apply": {
     "en": "Embed Parameters"
   },
-  "ColoredLyrics_ModSettings_CreateTriggerFile": {
+  "LyricPlus_ModSettings_CreateTriggerFile": {
     "en": "Edit Triggers"
   },
-  "ColoredLyrics_ModSettings_EmbedTriggerFile": {
+  "LyricPlus_ModSettings_EmbedTriggerFile": {
     "en": "Embed Triggers"
   },
-  "ColoredLyrics_ModSettings_DebugApply": {
+  "LyricPlus_ModSettings_DebugApply": {
     "en": "Debug Apply"
   }
 }

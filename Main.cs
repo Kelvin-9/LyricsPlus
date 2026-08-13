@@ -9,31 +9,32 @@ using System.Reflection;
 using TMPro;
 using UnityEngine;
 
-namespace ColoredLyrics
+namespace LyricPlus
 {
 
     [BepInPlugin(modGUID, modName, modVersion)]
     [BepInDependency(SpinCorePlugin.Guid, SpinCorePlugin.Version)]
-    public class ModBase : BaseUnityPlugin
+    public class Plugin : BaseUnityPlugin
     {
-        const string modGUID = "ColoredLyrics";
-        private const string modName = "ColoredLyrics";
+        const string modGUID = "LyricPlus";
+        private const string modName = "LyricPlus";
         private const string modVersion = "1.0.0";
 
         private readonly Harmony harmony = new(modGUID);
         internal static Shader textShader;
-
+        internal static List<TMP_FontAsset> fallbackFonts = [];
 
         void Awake()
         {
             Debug.Init(modGUID);
 
             InitShaders();
+            InitFallbackFont();
             ConfigManager.InitConfig();
 
             harmony.PatchAll(typeof(Patches));
 
-            Debug.Log("ColoredLyrics Loaded!");
+            Debug.Log("LyricPlus Loaded!");
         }
 
 
@@ -44,8 +45,8 @@ namespace ColoredLyrics
 
         public static void InitShaders()
         {
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ColoredLyrics.Shaders.textshader");
-            AssetBundle bundle = AssetBundle.LoadFromStream(stream);
+            Stream shaderStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricPlus.Shaders.textshader");
+            AssetBundle bundle = AssetBundle.LoadFromStream(shaderStream);
             if (bundle == null)
             {
                 Debug.LogError("BUNDLE NOT FOUND!!!");
@@ -58,8 +59,32 @@ namespace ColoredLyrics
                 Debug.LogError("SHADER NOT FOUND!!!");
                 return;
             }
-
             Debug.Log("Shaders initialized");
+        }
+
+        private static FontAssetSystem? _fontAssetSystem;
+        public static void InitFallbackFont()
+        {
+            Stream fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricPlus.Fonts.fallbackFont");
+            AssetBundle bundle = AssetBundle.LoadFromStream(fontStream);
+            if (bundle == null)
+            {
+                Debug.LogError("BUNDLE NOT FOUND!!!");
+                return;
+            }
+
+            var font1 = bundle.LoadAsset<TMP_FontAsset>("NotoSansSymbols");
+            var font2 = bundle.LoadAsset<TMP_FontAsset>("NotoSansSymbols2");
+            if (font1 == null || font2 == null)
+            {
+                Debug.LogError("FONT NOT FOUND!!!");
+                return;
+            }
+
+            fallbackFonts.Add(font1);
+            fallbackFonts.Add(font2);
+
+            Debug.Log("Fallback font fetched");
         }
 
         static Dictionary<TMP_FontAsset, Material> defaultMatMap = [];
@@ -79,9 +104,39 @@ namespace ColoredLyrics
             mat.CopyPropertiesFromMaterial(font.material);
             defaultMatMap[font] = mat;
 
+            foreach(var fallback in fallbackFonts)
+            {
+                AddFallbackFont(font, fallback);
+            }
+
             ApplyDefaultShaderParameters();
 
             return mat;
+        }
+
+        public static void AddFallbackFont(TMP_FontAsset font, TMP_FontAsset fallback)
+        {
+            if (font == null)
+            {
+                Debug.LogError($"Font {font} is null!");
+                return;
+            }
+
+            if (fallback == null)
+            {
+                Debug.LogError($"Fallback font {fallback} is null!");
+                return;
+            }
+
+            if (font.fallbackFontAssetTable.Contains(fallback))
+            {
+                Debug.Log($"Fallback {fallback} already added");
+                return;
+            }
+
+            Debug.Log($"Fallback {fallback.name} added to {font}");
+            font.fallbackFontAssetTable.Add(fallback);
+            TMPro_EventManager.ON_FONT_PROPERTY_CHANGED(true, font);
         }
 
         public static void ApplyDefaultShaderParameters()

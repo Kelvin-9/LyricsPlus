@@ -1,10 +1,9 @@
 ﻿using HarmonyLib;
 using System;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
-namespace ColoredLyrics
+namespace LyricPlus
 {
     [HarmonyPatch]
     public class Patches
@@ -14,13 +13,13 @@ namespace ColoredLyrics
         [HarmonyPostfix]
         internal static void CustomTextMeshProHelper_SetFontPostfix(CustomTextMeshProHelper __instance)
         {
-            if (!ConfigManager.config.enableColoredLyrics) return;
+            if (!ConfigManager.config.enableLyricPlus) return;
 
             bool isLyricsText = __instance.parentText.transform.parent?.name.Contains("BackgroundLyric(Clone)(Clone)") ?? false;
             if (!isLyricsText) return;
 
             // Replace lyric's LUT material with default TextMeshPro/Distance Field stored in AssetBundle
-            Material? newMat = ModBase.GetTextMaterial(__instance.parentText.font);
+            Material? newMat = Plugin.GetTextMaterial(__instance.parentText.font);
             if (newMat == null) 
             {
                 return;
@@ -36,7 +35,7 @@ namespace ColoredLyrics
         [HarmonyPrefix]
         internal static void BackgroundLyricLineDisplay_SetPhrasePrefix(BackgroundLyricLineDisplay __instance)
         {
-            if (__instance.textRenderer.fontSharedMaterial.shader != ModBase.textShader) return;
+            if (__instance.textRenderer.fontSharedMaterial.shader != Plugin.textShader) return;
 
             BackgroundLyricLineDisplay.AnimTimingSettings anim = __instance.animTimingSettings;
             if (!_assignedDefault)
@@ -77,7 +76,7 @@ namespace ColoredLyrics
         [HarmonyPrefix]
         internal static void SerializedLyricData_BuildSyllablesPrefix(ref string ___fullLyricsString)
         {
-            if (!ConfigManager.config.enableColoredLyrics) return;
+            if (!ConfigManager.config.enableLyricPlus) return;
 
             foreach (var pair in LyricTriggers.LUTKeys)
             {
@@ -93,7 +92,7 @@ namespace ColoredLyrics
         [HarmonyPrefix]
         internal static bool BackgroundLyricLineDisplay_PrerenderPrefix(ref TMP_TextInfo textInfo)
         {
-            if (textInfo.textComponent.fontSharedMaterial.shader != ModBase.textShader) return true;
+            if (textInfo.textComponent.fontSharedMaterial.shader != Plugin.textShader) return true;
             
             for (int i = 0; i < textInfo.characterCount; i++)
             {
@@ -114,7 +113,7 @@ namespace ColoredLyrics
         [HarmonyPostfix]
         internal static void BackgroundLyricLineDisplay_PrerenderPostfix(ref TMP_TextInfo textInfo)
         {
-            if (textInfo.textComponent.fontSharedMaterial.shader != ModBase.textShader) return;
+            if (textInfo.textComponent.fontSharedMaterial.shader != Plugin.textShader) return;
 
             Transform transform = textInfo.textComponent.transform;
             Vector3[] pivots = new Vector3[textInfo.characterCount];
@@ -156,7 +155,7 @@ namespace ColoredLyrics
                     Vector3 p2 = textInfo.meshInfo[matInd].vertices[vert + 2];
                     Vector3 p3 = textInfo.meshInfo[matInd].vertices[vert + 3];
 
-                    Vector3 offset = EmbeddedDataManager.lyricConfig.EvaluateLUTOffset(key);
+                    Vector3 offset = EmbeddedDataManager.GetOffset(key);
 
                     Vector3 up = ptr.vertex_TL.position - ptr.vertex_BL.position;
                     Vector3 right = ptr.vertex_TR.position - ptr.vertex_TL.position;
@@ -167,7 +166,7 @@ namespace ColoredLyrics
                         forward.normalized * offset.z;
 
                     // LUT for rotation
-                    Vector5 rotInfo = EmbeddedDataManager.lyricConfig.EvaluateLUTRotation(key);
+                    Vector5 rotInfo = EmbeddedDataManager.GetRotation(key);
                     Vector3 dir = new(rotInfo.x, rotInfo.y, rotInfo.z);
                     Vector3 axis =
                         right.normalized   * dir.x +
@@ -205,7 +204,7 @@ namespace ColoredLyrics
         [HarmonyPrefix]
         internal static void TextMeshProGenerateTextMeshPrefix(TextMeshPro __instance, ref UnityEngine.Color ___m_fontColor, ref Color32 ___m_fontColor32)
         {
-            if (__instance.fontSharedMaterial.shader != ModBase.textShader) return;
+            if (__instance.fontSharedMaterial.shader != Plugin.textShader) return;
 
             // Makes sure that font color doesn't default to the LUT color used to make text orange in base game
             ___m_fontColor = UnityEngine.Color.white;

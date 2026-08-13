@@ -2,7 +2,7 @@
 using SpinCore.UI;
 using UnityEngine;
 
-namespace ColoredLyrics
+namespace LyricPlus
 {
 
     internal class SyncedUIStore

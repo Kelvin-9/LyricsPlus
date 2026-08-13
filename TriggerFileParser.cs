@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 
-namespace ColoredLyrics
+namespace LyricPlus
 {
     internal class TriggerFileParser
     {
@@ -109,6 +109,9 @@ namespace ColoredLyrics
                 case "ROTATE":
                     ParseROTATE(tokens);
                     break;
+                case "RELATIVEROTATE":
+                    ParseRelativeROTATE(tokens);
+                    break;
                 case "REPEAT":
                     ParseREPEAT(tokens, lineNum);
                     break;
@@ -128,12 +131,13 @@ namespace ColoredLyrics
         }
 
         /// LUT [LUTindex] [color]
+        static readonly string lutUsage = "LUT \"LUTentry\" \"#color\"";
         void ParseLUT(string[] tokens)
         {
             if (tokens.Length < 3)
             {
                 Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nLUT [LUTkey] #[color]");
+                Debug.LogError($"Usage:\n   {lutUsage}");
                 return;
             }
 
@@ -142,6 +146,7 @@ namespace ColoredLyrics
             if (col == null)
             {
                 Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {lutUsage}");
                 return;
             }
 
@@ -164,12 +169,13 @@ namespace ColoredLyrics
 
         /// - COLOR [LUTindex] [time] [StartValue] <[EndValue] [duration]>
         ///     Sets the color of a binded LUT entry
+        static readonly string colorUsage = "COLOR \"LUTentry\" [time] \"#startColor\" <\"#endColor\" [duration]>";
         void ParseCOLOR(string[] tokens)
         {
             if (tokens.Length < 4)
             {
                 Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nCOLOR [LUTindex] [time] #[StartValue] #[EndValue] [duration]\nCOLOR [LUTindex] [time] #[color]");
+                Debug.LogError($"Usage:\n   {colorUsage}");
                 return;
             }
 
@@ -177,6 +183,7 @@ namespace ColoredLyrics
             if (time == null)
             {
                 Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {colorUsage}");
                 return;
             }
 
@@ -184,7 +191,7 @@ namespace ColoredLyrics
             string LUTkey = $"LUT_{LUTindex}";
             if (!colorKeys.ContainsKey(LUTkey))
             {
-                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with [LUT <name> #<color>]");
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with {lutUsage}");
                 return;
             }
 
@@ -202,6 +209,7 @@ namespace ColoredLyrics
                 if (StartValue == null || EndValue == null || duration == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                    Debug.LogError($"Usage:\n   {colorUsage}");
                     return;
                 }
 
@@ -214,6 +222,7 @@ namespace ColoredLyrics
                 if (LUTindex == null || color == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                    Debug.LogError($"Usage:\n   {colorUsage}");
                     return;
                 }
 
@@ -221,13 +230,14 @@ namespace ColoredLyrics
             }
         }
 
-        /// - SET [variable] [time] [startValue] <[endValue] [duration]>
+        /// - SET "variable" [time] [startValue] <[endValue] [duration]>
+        static readonly string setUsage = "SET \"variable\" [time] [startValue] <[endValue] [duration]>";
         void ParseSET(string[] tokens)
         {
             if (tokens.Length < 4)
             {
                 Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nCOLOR [LUTindex] [time] #[StartValue] #[EndValue] [duration]\nCOLOR [LUTindex] [time] #[color]");
+                Debug.LogError($"Usage:\n   {setUsage}");
                 return;
             }
 
@@ -236,6 +246,7 @@ namespace ColoredLyrics
             if (time == null)
             {
                 Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {setUsage}");
                 return;
             }
 
@@ -252,6 +263,7 @@ namespace ColoredLyrics
                 if (StartValue == null || EndValue == null || duration == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                    Debug.LogError($"Usage:\n   {setUsage}");
                     return;
                 }
 
@@ -264,6 +276,7 @@ namespace ColoredLyrics
                 if (StartValue == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                    Debug.LogError($"Usage:\n   {setUsage}");
                     return;
                 }
 
@@ -271,15 +284,16 @@ namespace ColoredLyrics
             }
         }
 
-        /// - OFFSET [LUTindex] [time] [startOffset] <[endOffset] [duration] [easing]>
+        /// - OFFSET [LUTindex] [time] [startOffset] <[endOffset] [duration] "easing">
         ///     Offsets the position of all text with the given [LUTindex]
         ///     Give the offsets in the form of x,y,z or (x,y,z)
+        static readonly string offsetUsage = "OFFSET \"LUTentry\" [time] (startOffset) <(endOffset) [duration]> <\"easing\">";
         void ParseOFFSET(string[] tokens)
         {
             if (tokens.Length < 4)
             {
                 Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nOFFSET [LUTindex] [time] [startOffset] <[endOffset] [duration] [easing]>\ne.g. OFFSET Color1 10.02 (0,0,0) (0,0,10) 2.1 EaseInSine");
+                Debug.LogError($"Usage:\n   {offsetUsage}");
                 return;
             }
 
@@ -287,6 +301,7 @@ namespace ColoredLyrics
             if (time == null)
             {
                 Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {offsetUsage}");
                 return;
             }
 
@@ -294,7 +309,7 @@ namespace ColoredLyrics
             string LUTkey = $"LUT_{LUTindex}";
             if (!colorKeys.ContainsKey(LUTkey))
             {
-                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with [LUT <name> #<color>]");
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with {lutUsage}");
                 return;
             }
 
@@ -313,6 +328,7 @@ namespace ColoredLyrics
                 if (StartValue == null || EndValue == null || duration == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                    Debug.LogError($"Usage:\n   {offsetUsage}");
                     return;
                 }
 
@@ -325,6 +341,7 @@ namespace ColoredLyrics
                 if (LUTindex == null || StartValue == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                    Debug.LogError($"Usage:\n   {offsetUsage}");
                     return;
                 }
 
@@ -333,14 +350,15 @@ namespace ColoredLyrics
             }
         }
 
-        /// - ROTATE [LUTindex] [time] [axis] [degrees] [pivotIndex] <[endDirction] [endDegrees] [easing]>
-        ///     Rotates all characters with [LUTindex] at [time] around [axis] and the character [pivotIndex] by [degrees]
+        /// - ROTATE [LUTindex] [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <"easing">
+        ///     Rotates all characters with [LUTindex] at [time] around (axis) and the character [pivotIndex] by [degrees]
+        static readonly string rotateUsage = "ROTATE \"LUTentry\" [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <\"easing\">";
         void ParseROTATE(string[] tokens)
         {
-            if (tokens.Length < 4)
+            if (tokens.Length < 6)
             {
                 Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nROTATE [LUTindex] [time] [axis] [degrees] [pivotIndex] <[endAxis] [endDegrees] [duration]> <[easing]>\ne.g. ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 EaseInOutQuint\n(this one's a doozy sorry)");
+                Debug.LogError($"Usage:\n   {rotateUsage}");
                 return;
             }
 
@@ -348,7 +366,7 @@ namespace ColoredLyrics
             string LUTkey = $"LUT_{LUTindex}";
             if (!colorKeys.ContainsKey(LUTkey))
             {
-                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with [LUT <name> #<color>]");
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with {lutUsage}");
                 return;
             }
 
@@ -356,6 +374,7 @@ namespace ColoredLyrics
             if (time == null)
             {
                 Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {rotateUsage}");
                 return;
             }
 
@@ -371,6 +390,7 @@ namespace ColoredLyrics
             if (StartAxis == null || degrees == null || pivotInd == null)
             {
                 Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                Debug.LogError($"Usage:\n   {rotateUsage}");
                 return;
             }
 
@@ -379,16 +399,17 @@ namespace ColoredLyrics
                 Vector3? EndAxis = ParseVector3(tokens[6]);
                 float? endDegrees = ParseFloat(tokens[7]);
                 float? duration = ParseFloat(tokens[8]);
-                int ease = tokens.Length > 8 ? (int)Easing.ParseEase(tokens[9]) : 0;
+                int ease = tokens.Length > 9 ? (int)Easing.ParseEase(tokens[9]) : 0;
                 if (EndAxis == null || endDegrees == null || duration == null)
                 {
                     Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                    Debug.LogError($"Usage:\n   {rotateUsage}");
                     return;
                 }
 
                 rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(
-                    time.Value, 
-                    duration.Value, 
+                    time.Value,
+                    duration.Value,
                     new Vector5(StartAxis.Value, degrees.Value, pivotInd.Value),              // Start value packs pivot
                     new Vector5(EndAxis.Value, endDegrees.Value, ease)                        // End value packs ease
                 ));
@@ -398,6 +419,60 @@ namespace ColoredLyrics
             {
                 rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(time.Value, new Vector5(StartAxis.Value, degrees.Value, pivotInd.Value)));
             }
+        }
+
+        /// - ROTATERELATIVE [LUTindex] [time] (endAxis) [endDegrees] [duration] <"easing">
+        ///     Continues the rotation from previous trigger, effectively using the previous trigger's end values as this trigger's start value
+        static readonly string relativeRotateUsage = "RELATIVEROTATE \"LUTentry\" [time] (endAxis) [endDegrees] [duration] <\"easing\">";
+        void ParseRelativeROTATE(string[] tokens)
+        {
+            if (tokens.Length < 5)
+            {
+                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {relativeRotateUsage}");
+                return;
+            }
+
+            string LUTindex = tokens[1];
+            string LUTkey = $"LUT_{LUTindex}";
+            if (!colorKeys.ContainsKey(LUTkey))
+            {
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with {lutUsage}");
+                return;
+            }
+
+            float? time = ParseTime(tokens[2]);
+            if (time == null)
+            {
+                Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {relativeRotateUsage}");
+                return;
+            }
+
+            Color32 LUTfrom = colorKeys[LUTkey];
+            if (!rotateTriggers.ContainsKey(LUTfrom))
+            {
+                rotateTriggers[LUTfrom] = [];
+            }
+
+            Vector3? EndAxis = ParseVector3(tokens[3]);
+            float? endDegrees = ParseFloat(tokens[4]);
+            float? duration = ParseFloat(tokens[5]);
+            int ease = tokens.Length > 6 ? (int)Easing.ParseEase(tokens[6]) : 0;
+            if (EndAxis == null || endDegrees == null || duration == null)
+            {
+                Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                Debug.LogError($"Usage:\n   {relativeRotateUsage}");
+                return;
+            }
+
+            rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(
+                time.Value,
+                duration.Value,
+                new Vector5(EndAxis.Value, 0, 0),                                         // Start value packs pivot
+                new Vector5(EndAxis.Value, endDegrees.Value, ease),                       // End value packs ease
+                isRelative: true
+            ));
         }
 
 
@@ -411,12 +486,13 @@ namespace ColoredLyrics
         readonly Stack<int> returnstack = [];
 
         /// - REPEAT [numrepeats] interval [interval]
+        static readonly string repeatUsage = "REPEAT [numRepeats] interval [interval]\n...commands...\nENDREPEAT";
         void ParseREPEAT(string[] tokens, int lineNum)
         {
             if (tokens.Length < 4)
             {
                 Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
-                Debug.LogError($"Usage:\nREPEAT [numRepeats] interval [interval]");
+                Debug.LogError($"Usage:\n{repeatUsage}");
                 return;
             }
 
@@ -425,6 +501,7 @@ namespace ColoredLyrics
             if (interval == null || repeats == null)
             {
                 Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n{repeatUsage}");
                 return;
             }
 
@@ -437,9 +514,10 @@ namespace ColoredLyrics
 
         int ParseENDREPEAT(string[] tokens, int lineNum)
         {
-            if (repeatDepth <= 0) 
-            { 
+            if (repeatDepth <= 0)
+            {
                 Debug.LogError("Unexpected ENDREPEAT");
+                Debug.LogError($"Usage:\n{repeatUsage}");
                 return lineNum;
             }
 
@@ -462,11 +540,13 @@ namespace ColoredLyrics
 
         // FUNCTION [name]
         // ENDFUNCTION
+        static readonly string functionUsage = "FUNCTION \"name\"\n...commands...\nENDFUNCTION";
         int ParseFUNCTION(string[] tokens, int lineNum)
         {
             if (tokens.Length < 2)
             {
-                Debug.LogError($"FUNCTION {tokens[1]} was does not have name defined!\nUsage:\nFUNCTION [name]\n...commands...\nENDFUNCTION");
+                Debug.LogError($"FUNCTION {tokens[1]} was does not have name defined!");
+                Debug.LogError($"Usage:\n{functionUsage}");
             }
 
             int functionPos = lineNum;
@@ -549,7 +629,7 @@ namespace ColoredLyrics
                 return lineNum;
             }
 
-            float? time = ParseTime(tokens[2]);
+            float? time = ParseFloat(tokens[2]);  //! Important to not use ParseTime here so the time offset stack is separate from the repeat offsets
             if (time == null)
             {
                 Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
@@ -576,10 +656,12 @@ namespace ColoredLyrics
 
             if (repeatDepth <= 0)
                 return t + timeOffset;
-            for (int i = 0; i < repeatDepth; i++)
-                t += repeatIntervals[i] * currentRepeatIterations[i];
 
-            return t + timeOffset;
+            float repeatTimeOffset = 0;
+            for (int i = 0; i < repeatDepth; i++)
+                repeatTimeOffset += repeatIntervals[i] * currentRepeatIterations[i];
+
+            return t + repeatTimeOffset + timeOffset;
         }
 
         static float? ParseFloat(string num)

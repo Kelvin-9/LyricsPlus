@@ -1,20 +1,22 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices.ComTypes;
 using BepInEx;
 using BepInEx.Configuration;
+using Newtonsoft.Json;
 using SpinCore.Translation;
 using SpinCore.UI;
 using UnityEngine;
 
 
-namespace ColoredLyrics
+namespace LyricPlus
 {
     internal class ConfigManager
     {
-        private static ConfigFile _config = new ConfigFile(Path.Combine(Paths.ConfigPath, "ColoredLyrics.cfg"), true);
+        private static ConfigFile _config = new ConfigFile(Path.Combine(Paths.ConfigPath, "LyricPlus.cfg"), true);
 
-        private static ConfigEntry<bool> _enableColoredLyrics;
+        private static ConfigEntry<bool> _enableLyricPlus;
         private static ConfigEntry<bool> _embeddedOnly;
         // Face
         private static ConfigEntry<UnityEngine.Color> _defaultFaceColor;
@@ -34,7 +36,7 @@ namespace ColoredLyrics
         public static CustomGroup? quickModGroup;
         public static CustomButton? openLyricFileButton;
 
-        public static ColoredLyricsConfig config;
+        public static LyricPlusConfig config;
 
         public static void InitConfig()
         {
@@ -48,14 +50,14 @@ namespace ColoredLyrics
             config = new();
 
             // Toggles
-            _enableColoredLyrics = _config.Bind("ColoredLyrics",
+            _enableLyricPlus = _config.Bind("LyricPlus",
                 "Enable",
                 defaultValue: true,
                 "Global toggle for lyric effects"
             );
-            config.enableColoredLyrics = _enableColoredLyrics.Value;
+            config.enableLyricPlus = _enableLyricPlus.Value;
 
-            _embeddedOnly = _config.Bind("ColoredLyrics",
+            _embeddedOnly = _config.Bind("LyricPlus",
                 "EmbeddedOnly",
                 defaultValue: true,
                 "Toggles whether default values are used when chart does not have embedded lyric configs"
@@ -63,14 +65,14 @@ namespace ColoredLyrics
             config.embeddedOnly = _embeddedOnly.Value;
 
             // Face
-            _defaultFaceColor = _config.Bind("ColoredLyrics",
+            _defaultFaceColor = _config.Bind("LyricPlus",
                 "FaceColor",
                 defaultValue: new UnityEngine.Color(1, 1, 1, 1),
                 "Color of text surface"
             );
             config.SetColor("_FaceColor", _defaultFaceColor.Value.Convert());
 
-            _defaultFaceDilate = _config.Bind("ColoredLyrics",
+            _defaultFaceDilate = _config.Bind("LyricPlus",
                 "FaceDilate",
                 defaultValue: 0f,
                 "Face dilate between -1 and 1"
@@ -78,21 +80,21 @@ namespace ColoredLyrics
             config.SetFloat("_FaceDilate", _defaultFaceDilate.Value);
 
             // Outline
-            _defaultOutlineWidth = _config.Bind("ColoredLyrics",
+            _defaultOutlineWidth = _config.Bind("LyricPlus",
                 "OutlineWidth",
                 defaultValue: 0.1f,
                 "Width for outlines between 0 and 1"
             );
             config.SetFloat("_OutlineWidth", _defaultOutlineWidth.Value);
 
-            _defaultOutlineColor = _config.Bind("ColoredLyrics",
+            _defaultOutlineColor = _config.Bind("LyricPlus",
                 "OutlineColor",
                 defaultValue: new UnityEngine.Color(0, 0, 0, 1),
                 "Color of lyric outline"
             );
             config.SetColor("_OutlineColor", _defaultOutlineColor.Value.Convert());
 
-            _defaultDefaultColor = _config.Bind("ColoredLyrics",
+            _defaultDefaultColor = _config.Bind("LyricPlus",
                 "DefaultColor",
                 defaultValue: new UnityEngine.Color(1, 1, 1, 1),
                 "Default Lyric Color"
@@ -100,14 +102,14 @@ namespace ColoredLyrics
             config.defaultColor = _defaultDefaultColor.Value.Convert();
 
             // Fade
-            _defaultFadeInRatio = _config.Bind("ColoredLyrics",
+            _defaultFadeInRatio = _config.Bind("LyricPlus",
                 "FadeInRatio",
                 defaultValue: 1f,
                 "Lyric fade in"
             );
             config.fadeInRatio = _defaultFadeInRatio.Value;
 
-            _defaultFadeOutRatio = _config.Bind("ColoredLyrics",
+            _defaultFadeOutRatio = _config.Bind("LyricPlus",
                 "FadeOutRatio",
                 defaultValue: 1f,
                 "Lyric fade out"
@@ -124,20 +126,20 @@ namespace ColoredLyrics
                 UIHelper.CreateSectionHeader(
                     group.Transform,
                     "General Header",
-                    "ColoredLyrics_ModSettings_Header",
+                    "LyricPlus_ModSettings_Header",
                     false
                 );
 
                 // Global Toggles
                 UIHelper.CreateLargeToggle(
                     group.Transform,
-                    "EnableColoredLyrics",
-                    "ColoredLyrics_ModSettings_Enable",
-                    config.enableColoredLyrics,
+                    "EnableLyricPlus",
+                    "LyricPlus_ModSettings_Enable",
+                    config.enableLyricPlus,
                     v =>
                     {
-                        config.enableColoredLyrics = v;
-                        _enableColoredLyrics.Value = v;
+                        config.enableLyricPlus = v;
+                        _enableLyricPlus.Value = v;
                     }
                 );
 
@@ -145,12 +147,12 @@ namespace ColoredLyrics
                 var label = UIHelper.CreateLabel(
                     group.Transform,
                     "EmbeddedOnlyTootip",
-                    "ColoredLyrics_ModSettings_EmbeddedOnlyTooltip"
+                    "LyricPlus_ModSettings_EmbeddedOnlyTooltip"
                 );
                 UIHelper.CreateLargeToggle(
                     group.Transform,
-                    "EnableColoredLyrics",
-                    "ColoredLyrics_ModSettings_EmbeddedOnly",
+                    "EnableLyricPlus",
+                    "LyricPlus_ModSettings_EmbeddedOnly",
                     config.embeddedOnly,
                     v =>
                     {
@@ -168,7 +170,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLabel(
                     faceColorGroup.Transform,
                     "DefaultFaceColorLabel",
-                    "ColoredLyrics_ModSettings_FaceColor"
+                    "LyricPlus_ModSettings_FaceColor"
                 );
                 CustomInputField faceColorInput = UIHelper.CreateInputField(
                     faceColorGroup.Transform,
@@ -188,7 +190,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLargeMultiChoiceButton(
                     defaultValuesGroup.Transform,
                     "DefaultFaceDilate",
-                    "ColoredLyrics_ModSettings_FaceDilate",
+                    "LyricPlus_ModSettings_FaceDilate",
                     (int)(config.GetFloat("_FaceDilate") * 100),
                     v =>
                     {
@@ -203,7 +205,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLargeMultiChoiceButton(
                     defaultValuesGroup.Transform,
                     "DefaultOutlineWidth",
-                    "ColoredLyrics_ModSettings_OutlineWidth",
+                    "LyricPlus_ModSettings_OutlineWidth",
                     (int)(config.GetFloat("_OutlineWidth") * 100),
                     v =>
                     {
@@ -219,7 +221,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLabel(
                     outlineColorGroup.Transform,
                     "DefaultOutlineColorLabel",
-                    "ColoredLyrics_ModSettings_OutlineColor"
+                    "LyricPlus_ModSettings_OutlineColor"
                 );
                 CustomInputField outlineColorInput = UIHelper.CreateInputField(
                     outlineColorGroup.Transform,
@@ -241,7 +243,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLabel(
                     defaultColorGroup.Transform,
                     "DefaultDefaultColorLabel", // default default heh
-                    "ColoredLyrics_ModSettings_DefaultColor"
+                    "LyricPlus_ModSettings_DefaultColor"
                 );
                 CustomInputField defaultColorInput = UIHelper.CreateInputField(
                     defaultColorGroup.Transform,
@@ -262,7 +264,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLargeMultiChoiceButton(
                     defaultValuesGroup.Transform,
                     "EmbedFadeInRatio",
-                    "ColoredLyrics_ModSettings_FadeInRatio",
+                    "LyricPlus_ModSettings_FadeInRatio",
                     (int)(config.fadeInRatio * 100),
                     v =>
                     {
@@ -277,7 +279,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLargeMultiChoiceButton(
                     defaultValuesGroup.Transform,
                     "EmbedFadeInRatio",
-                    "ColoredLyrics_ModSettings_FadeOutRatio",
+                    "LyricPlus_ModSettings_FadeOutRatio",
                     (int)(config.fadeOutRatio * 100),
                     v =>
                     {
@@ -296,9 +298,10 @@ namespace ColoredLyrics
                 label.Transform.SetAsLastSibling();
             };
 
-            var locale = Assembly.GetExecutingAssembly().GetManifestResourceStream("ColoredLyrics.locale.json");
+            var locale = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricPlus.locale.json");
+
             TranslationHelper.LoadTranslationsFromStream(locale);
-            UIHelper.RegisterMenuInModSettingsRoot("ColoredLyrics_ModSettings_Name", page);
+            UIHelper.RegisterMenuInModSettingsRoot("LyricPlus_ModSettings_Name", page);
         }
 
         static Dictionary<string, object> embedShaderParams = [];
@@ -315,11 +318,11 @@ namespace ColoredLyrics
             UIHelper.RegisterGroupInQuickModSettings(panelTransform =>
             {
                 // HEADER //
-                var group = UIHelper.CreateGroup(panelTransform, "ColoredLyricEmbed");
+                var group = UIHelper.CreateGroup(panelTransform, "LyricPlusEmbed");
                 UIHelper.CreateSectionHeader(
                     group.Transform,
                     "Header",
-                    "ColoredLyrics_QuickSettings_Header",
+                    "LyricPlus_QuickSettings_Header",
                     false
                 );
                 embedTargetLabel = UIHelper.CreateLabel(
@@ -335,7 +338,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLabel(
                     faceColorGroup.Transform,
                     "EmbedFaceColorLabel",
-                    "ColoredLyrics_ModSettings_FaceColor"
+                    "LyricPlus_ModSettings_FaceColor"
                 );
                 var embedFaceColorInput = UIHelper.CreateInputField(
                     faceColorGroup.Transform,
@@ -358,7 +361,7 @@ namespace ColoredLyrics
                 var embedFaceDilateInput = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedFaceDilate",
-                    "ColoredLyrics_ModSettings_FaceDilate",
+                    "LyricPlus_ModSettings_FaceDilate",
                     (int)(config.GetFloat("_FaceDilate") * 100),
                     v =>
                     {
@@ -377,7 +380,7 @@ namespace ColoredLyrics
                 var embedOutlineWidthInput = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedOutlineWidth",
-                    "ColoredLyrics_ModSettings_OutlineWidth",
+                    "LyricPlus_ModSettings_OutlineWidth",
                     0,
                     v =>
                     {
@@ -397,7 +400,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLabel(
                     outlineColorGroup.Transform,
                     "EmbedOutlineColorLabel",
-                    "ColoredLyrics_ModSettings_OutlineColor"
+                    "LyricPlus_ModSettings_OutlineColor"
                 );
                 
                 var embedOutlineColor = UIHelper.CreateInputField(
@@ -425,7 +428,7 @@ namespace ColoredLyrics
                 UIHelper.CreateLabel(
                     defaultColorGroup.Transform,
                     "EmbedDefaultColorLabel",
-                    "ColoredLyrics_ModSettings_DefaultColor"
+                    "LyricPlus_ModSettings_DefaultColor"
                 );
                 var embedDefaultColor = UIHelper.CreateInputField(
                     defaultColorGroup.Transform,
@@ -448,7 +451,7 @@ namespace ColoredLyrics
                 var embedFadeIn = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedFadeInRatio",
-                    "ColoredLyrics_ModSettings_FadeInRatio",
+                    "LyricPlus_ModSettings_FadeInRatio",
                     100,
                     v =>
                     {
@@ -464,7 +467,7 @@ namespace ColoredLyrics
                 var embedFadeOut = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedFadeOutRatio",
-                    "ColoredLyrics_ModSettings_FadeOutRatio",
+                    "LyricPlus_ModSettings_FadeOutRatio",
                     100,
                     v =>
                     {
@@ -481,7 +484,7 @@ namespace ColoredLyrics
                 var embedUnspokenWordAlpha = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedUnspokenWordAlpha",
-                    "ColoredLyrics_ModSettings_UnspokenWordAlpha",
+                    "LyricPlus_ModSettings_UnspokenWordAlpha",
                     50,
                     v =>
                     {
@@ -497,7 +500,7 @@ namespace ColoredLyrics
                 var embedSlant = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedSlant",
-                    "ColoredLyrics_ModSettings_Slant",
+                    "LyricPlus_ModSettings_Slant",
                     20,
                     v =>
                     {
@@ -514,7 +517,7 @@ namespace ColoredLyrics
                 var embedTextboxSize = UIHelper.CreateLargeMultiChoiceButton(
                     group.Transform,
                     "EmbedTextboxSize",
-                    "ColoredLyrics_ModSettings_TextboxSize",
+                    "LyricPlus_ModSettings_TextboxSize",
                     0,
                     v =>
                     {
@@ -532,7 +535,7 @@ namespace ColoredLyrics
                 UIHelper.CreateButton(
                     group.Transform,
                     "ApplyEmbedLyricSettings",
-                    "ColoredLyrics_ModSettings_Apply",
+                    "LyricPlus_ModSettings_Apply",
                     () =>
                     {
                         //EmbeddedDataManager.SaveShaderParametersForTrack(EmbeddedDataManager.currentFile, new LyricConfig(embedShaderParams));
@@ -545,7 +548,7 @@ namespace ColoredLyrics
                 openLyricFileButton = UIHelper.CreateButton(
                     group.Transform,
                     "CreateLyricTriggerButton",
-                    "ColoredLyrics_ModSettings_CreateTriggerFile",
+                    "LyricPlus_ModSettings_CreateTriggerFile",
                     () =>
                     {
                         EmbeddedDataManager.CreateLyricTriggerFileForCurrentTrack();
@@ -556,7 +559,7 @@ namespace ColoredLyrics
                 UIHelper.CreateButton(
                     group.Transform,
                     "EmbedLyricTriggerButton",
-                    "ColoredLyrics_ModSettings_EmbedTriggerFile",
+                    "LyricPlus_ModSettings_EmbedTriggerFile",
                     () =>
                     {
                         if (!EmbeddedDataManager.hasEmbeddedData)
@@ -589,9 +592,9 @@ namespace ColoredLyrics
         }
     }
 
-    public struct ColoredLyricsConfig
+    public struct LyricPlusConfig
     {
-        public bool enableColoredLyrics; // This only takes effect on chart restart due to the nature of the patch
+        public bool enableLyricPlus; // This only takes effect on chart restart due to the nature of the patch
         public bool embeddedOnly;
         public Color defaultColor;
         public float fadeInRatio;
@@ -599,7 +602,7 @@ namespace ColoredLyrics
 
         public Dictionary<string, object> shaderParams = [];
 
-        public ColoredLyricsConfig()
+        public LyricPlusConfig()
         {
             shaderParams = [];
         }
@@ -619,7 +622,7 @@ namespace ColoredLyrics
             if (value is float f)
             {
                 shaderParams[name] = value;
-                ModBase.ApplyDefaultShaderParameters(name, f);
+                Plugin.ApplyDefaultShaderParameters(name, f);
             }
         }
 
@@ -628,7 +631,7 @@ namespace ColoredLyrics
             if (value is Color c)
             {
                 shaderParams[name] = value;
-                ModBase.ApplyDefaultShaderParameters(name, c);
+                Plugin.ApplyDefaultShaderParameters(name, c);
             }
         }
     }

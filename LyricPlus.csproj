@@ -78,6 +78,11 @@
     <None Remove="textshader" />
     <EmbeddedResource Include="Shaders\textshader" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="fallbackFont" />
+    <EmbeddedResource Include="Fonts\fallbackFont" />
+  </ItemGroup>
   
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />

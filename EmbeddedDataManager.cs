@@ -8,7 +8,7 @@ using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Diagnostics;
 
-namespace ColoredLyrics
+namespace LyricPlus
 {
     internal class EmbeddedDataManager
     {
@@ -101,56 +101,66 @@ namespace ColoredLyrics
         ///  ------------------------------------
         #   COMMANDS:
         #
-        #   LUT [entryName] #[color]
-        #       - Creates a lookup table entry named [entryName] for color #[color]
+        #   LUT "LUTentry" "#color"
+        #       - Creates a lookup table entry named "LUTentry" for color [#color]
         #       - It is recommended to use colors that you are not going to use but will still look good for non-mod users, like reserving #01FFFF, #02FFFF etc to look up table keys
-        #       - Note that the lyric editor will automatically replace any instance of [entryName] to the respective #[color]
+        #       - Note that the lyric editor will automatically replace any instance of "LUTentry" to the respective "#color"
         #       Example:
         #           LUT color1 #01FFFF                                             // Binds color1 to #01FFFF
         #
-        #   COLOR [LUTentry] [time] #[StartValue] <#[EndValue] [duration]>
-        #       - Replaces all text's color with color tag corresponding to the LUT entry's color to the new color #[StartValue] and transitions to #[EndValue] over [duration]
+        #   COLOR "LUTentry" [time] "#startColor" <"#endColor" [duration]>
+        #       - Replaces all text's color with color tag corresponding to the LUT entry's color to the new color "#startColor" and transitions to "#endColor" over [duration]
         #       - Make sure that the LUT command is called before using COLOR for that entry
         #       Example:
         #           LUT color1 #01FFFF
         #           COLOR color1 10.0 #FF0000 #00FF00 1.2                          // Sets color1 to red (#FF0000) at time 10.0 then it turns green (#00FF00) over 1.2 seconds
         #
-        #   SET [variable] [time] [startValue] <[endValue] [duration]>
-        #       - Smoothly curves [variable] at [time] from [startValue] to [endValue] over [duration]
+        #   SET "variable" [time] [startValue] <[endValue] [duration]>
+        #       - Smoothly curves "variable" at [time] from [startValue] to [endValue] over [duration]
         #       - Variable names: FADEIN, FADEOUT, UNSPOKENALPHA, SLANT, TEXTBOXSIZE
         #       Example:
         #           SET FADEIN 10.2 1.0 0 5                                        // Sets FADEIN to 1.0 at time 10.2 then it smoothly falls back to 0 over 5 seconds
         #
-        #   OFFSET [LUTindex] [time] [startOffset] <[endOffset] [duration]> <[easing]>
-        #       - Offsets the position of all text with the given [LUTindex] from [startOffset] to [endOffset] over duration
+        #   OFFSET "LUTentry" [time] (startOffset) <(endOffset) [duration]> <"easing">
+        #       - Offsets the position of all text with the given "LUTentry" from [startOffset] to [endOffset] over duration
         #       - Give the offsets in the form of x,y,z or (x,y,z)
-        #       - Optional [easing] parameter can be set to any easing found in https://easings.net/
+        #       - Optional "easing" parameter can be set to any easing found in https://easings.net/
         #       Example:
         #           OFFSET color1 30.5 (0,0,0) (0,4,-10) 2 ElasticInOut            // All text with same color tag as color1 gets moved from (0,0,0) to (0,4,-10) over 2 seconds while using the ElasticInOut animation curve
         #
-        #   ROTATE [LUTindex] [time] [axis] [degrees] [pivotIndex] <[endAxis] [endDegrees] [duration]> <[easing]>
+        #   ROTATE "LUTentry" [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <"easing">
+        #       - Rotates around (axis) and character index [pivotIndex] by [degrees], moving the axis towards (endAxis) and changing the degrees to [endDegrees] over [duration]
+        #       - Pivot index refers to the index of the character the rotation is based on, starting at 0 for the first character in the phrase.
+        #       - For example, "@<color=color1>helicopter" with trigger ROTATE color1 10 (0,0,1) 10 2 would rotate around index 2 of the phrase "@helicopter" which would be the 3rd character "l", rotated around the z axis by 10 degrees.
         #       Example: 
         #           ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 EaseInOutQuint
         #           (this one's a doozy sorry)
+        #   
+        #   RELATIVEROTATE "LUTentry" [time] (endAxis) [endDegrees] [duration] <"easing">
+        #       - Rotates around the previous trigger's end axis and pivot, increasing the angle by [endDegrees] and moving axis towards (endAxis) over [duration]
+        #       - Makes writing consecutive rotations easier and compatible with REPEAT loops
+        #       Example:
+        #           ROTATE color1 9 (0,0,1) 0
+        #           RELATIVEROTATE color1 10.2 (0,0,1) 20 2 outsine
+        #           RELATIVEROTATE color1 11.2 (0,0,1) 20 2 outsine
         #
-        #   Note that parameters in <> are optional in this guide
-        #
+        #   <> = optional, [] = number, "" = name, "#x" = color, () = vector
+        #   All variables are separated by space so do NOT add spaces between vector components like (0, 0, 0). Write it like 0,0,0 or (0,0,0) instead
         ///  ------------------------------------
 
 
 
 
-        # LUT ENTRIES
-        LUT color1 #FFFFFF
+        LUT color1 #01FFFF
+        LUT color2 #02FFFF
+        LUT color3 #03FFFF
+        LUT color4 #04FFFF
         
-
-        # COLOR TRIGGERS
         COLOR color1 10.0 #FF0000 #00FF00 2.0
         COLOR color1 12.0 #00FF00 #0000FF 2.0
         COLOR color1 14.0 #0000FF #FF0000 2.0
 
 
-        # OTHER STUFF
 
 
         ///  ------------------------------------
@@ -167,7 +177,7 @@ namespace ColoredLyrics
         #
         #   CALL [functionName] [time]
         #       - All commands in the function will have their time value increased by [time]
-        #       - Note that infinitly recursive function calls will be ignored
+        #       - Note that infinitly recursive function calls will be ignored, i.e. if FUNCTION A has CALL B [time] and FUNCTION B has CALL A [time], the last CALL A will not execute
         #
         ///  ------------------------------------
 
@@ -249,7 +259,6 @@ namespace ColoredLyrics
             lyricConfig = conf;
             if (lyricConfig == null)
             {
-                Debug.Log("No lyric config found");
                 ConfigManager.syncUI.Reset();
                 shaderData.Clear();
                 matMap.Clear();
@@ -257,9 +266,6 @@ namespace ColoredLyrics
             }
 
             shaderData = lyricConfig.GetParameterDictionary();
-
-            //Debug.Log($"<{file.FileNameNoExtension}> Loaded {shaderData.Count} shader params");
-            //Debug.Log($"config: \n{lyricConfig}");
 
             SyncAllQuickmodEmbedUI();
         }
@@ -327,6 +333,28 @@ namespace ColoredLyrics
             lyricConfig.SetVariable(key, value);
         }
 
+        public static Vector3 GetOffset(Color32 key)
+        {
+            if (lyricConfig == null)
+            {
+                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+                return Vector3.zero;
+            }
+
+            return lyricConfig.EvaluateLUTOffset(key);
+        }
+
+        public static Vector5 GetRotation(Color32 key)
+        {
+            if (lyricConfig == null)
+            {
+                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+                return new Vector5();
+            }
+
+            return lyricConfig.EvaluateLUTRotation(key);
+        }
+
 
         // GET CHART LYRIC MATERIAL
         static Dictionary<TMP_FontAsset, Material> matMap = [];
@@ -339,9 +367,14 @@ namespace ColoredLyrics
 
             if (matMap.TryGetValue(font, out var mat)) return mat;
 
-            mat = new Material(ModBase.textShader);
+            mat = new Material(Plugin.textShader);
             mat.CopyPropertiesFromMaterial(font.material);
             matMap[font] = mat;
+
+            foreach (var fallback in Plugin.fallbackFonts)
+            {
+                Plugin.AddFallbackFont(font, fallback);
+            }
 
             Util.ApplyShaderParameter(mat, shaderData);
 
@@ -530,7 +563,7 @@ namespace ColoredLyrics
         {
             Color32 c = lutColor.GetValueOrDefault(key.WithA(255), key);
 
-            return c.WithA(key.a);
+            return c;
         }
 
         public Vector3 EvaluateLUTOffset(Color32 key)

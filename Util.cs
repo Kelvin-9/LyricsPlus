@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 
-namespace ColoredLyrics
+namespace LyricPlus
 {
     public static class Util
     {
@@ -32,12 +32,28 @@ namespace ColoredLyrics
             return new Color32(col.r, col.g, col.b, a);
         }
 
-        public static UnityEngine.Color LerpHSL(UnityEngine.Color a, UnityEngine.Color b, float t)
+        public static Vector5 WithV(this Vector5 vec, float v)
         {
-            a.ToHSLA();
-            b.ToHSLA();
-            Vector4 h = Vector4.Lerp(a, b, t);
-            return UnityEngine.Color.HSVToRGB(h.x, h.y, h.z).WithA(h.w);
+            return new Vector5(vec, v);
+        }
+
+        public static UnityEngine.Color LerpHSV(UnityEngine.Color a, UnityEngine.Color b, float t)
+        {
+            UnityEngine.Color.RGBToHSV(a, out float h1, out float s1, out float v1);
+            UnityEngine.Color.RGBToHSV(b, out float h2, out float s2, out float v2);
+
+            float h = Mathf.LerpAngle(h1 * 360f, h2 * 360f, t) / 360f;
+
+            h = Mathf.Repeat(h, 1f);
+
+            float s = Mathf.Lerp(s1, s2, t);
+            float v = Mathf.Lerp(v1, v2, t);
+            float aAlpha = Mathf.Lerp(a.a, b.a, t);
+
+            UnityEngine.Color result = UnityEngine.Color.HSVToRGB(h, s, v);
+            result.a = aAlpha;
+
+            return result;
         }
 
         public static byte Remap(this byte value, byte fromMin, byte fromMax, byte toMin, byte toMax)
@@ -194,6 +210,26 @@ namespace ColoredLyrics
             z = vec.z;
             this.w = w;
             this.v = v;
+        }
+
+        public static implicit operator Vector4(Vector5 v)
+        {
+            return new Vector4(v.x, v.y, v.z, v.w);
+        }
+
+        public static implicit operator Vector3(Vector5 v)
+        {
+            return new Vector4(v.x, v.y, v.z);
+        }
+
+        public static Vector5 operator +(Vector5 v1, Vector5 v2) 
+        { 
+            return new(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w, v1.v + v2.v);
+        }
+
+        public override string ToString()
+        {
+            return $"({x},{y},{z},{w},{v})";
         }
     }
 }
