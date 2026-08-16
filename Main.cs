@@ -135,7 +135,6 @@ namespace LyricPlus
 
             if (font.fallbackFontAssetTable.Contains(fallback))
             {
-                Debug.Log($"Fallback {fallback} already added");
                 return;
             }
 

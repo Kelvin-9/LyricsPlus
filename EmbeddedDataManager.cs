@@ -16,7 +16,7 @@ namespace LyricPlus
         public static IMultiAssetSaveFile? currentFile;
         internal static Dictionary<string, object> shaderData = [];
         internal static LyricConfig? lyricConfig = null;
-        internal static bool hasEmbeddedData => lyricConfig != null;
+        internal static bool HasEmbeddedData => lyricConfig != null;
 
         public static void Reload()
         {
@@ -135,6 +135,11 @@ namespace LyricPlus
         #           OFFSET color1 30.5 (0,0,0)
         #           RELATIVEOFFSET color1 31 (0,1,0)
         #
+        #   SCALE [LUTindex] [time] (startScale) [pivotIndex] <(endScale) [duration]> <"easing">
+        #       - Scales [LUTindex] around [pivotIndex] by (startScale)
+        #       Example:
+        #           SCALE color1 10.0 (1,1,1) 0 (1,2,1) 2.0 InOutQuint
+        #
         #   ROTATE "LUTentry" [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <"easing">
         #       - Rotates around (axis) and character index [pivotIndex] by [degrees], moving the axis towards (endAxis) and changing the degrees to [endDegrees] over [duration]
         #       - Pivot index refers to the index of the character within the phrase, starting at 0 for the first character. (Use -1 to rotate in place)
@@ -173,7 +178,7 @@ namespace LyricPlus
         #
         #   MACROS:
         #
-        #   REPEAT [numRepeats] interval [timeInterva]
+        #   REPEAT [numRepeats] interval [timeInterval]
         #       (commands go here)
         #   ENDREPEAT
         #       - You can use RELATIVE triggers to repeatedly move/rotate text with this
@@ -238,7 +243,7 @@ namespace LyricPlus
         // UI SYNC
         public static void SyncAllQuickmodEmbedUI()
         {
-            if (!hasEmbeddedData) 
+            if (!HasEmbeddedData) 
             {
                 Debug.Log("No embedded data, skipping sync");
             }
@@ -272,7 +277,7 @@ namespace LyricPlus
                 return;
             }
 
-            Debug.Log($"<{file.FileNameNoExtension}> Loaded embedded lyric+ config");
+            //Debug.Log($"<{file.FileNameNoExtension}> Loaded embedded lyric+ config");
             shaderData = lyricConfig.GetParameterDictionary();
 
             SyncAllQuickmodEmbedUI();
@@ -352,45 +357,45 @@ namespace LyricPlus
             lyricConfig.SetVariable(key, value);
         }
 
-        public static Vector3 GetOffset(Color32 key)
-        {
-            if (lyricConfig == null)
-            {
-                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
-                return Vector3.zero;
-            }
+        //public static Vector3 GetOffset(Color32 key)
+        //{
+        //    if (lyricConfig == null)
+        //    {
+        //        Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+        //        return Vector3.zero;
+        //    }
 
-            return lyricConfig.EvaluateLUTOffset(key);
-        }
+        //    return lyricConfig.EvaluateLUTOffset(key);
+        //}
 
-        public static Vector4 GetScale(Color32 key)
-        {
-            if (lyricConfig == null)
-            {
-                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
-                return new Vector4(1, 1, 1, -1);
-            }
+        //public static Vector4 GetScale(Color32 key)
+        //{
+        //    if (lyricConfig == null)
+        //    {
+        //        Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+        //        return new Vector4(1, 1, 1, -1);
+        //    }
 
-            return lyricConfig.EvaluateLUTScale(key);
-        }
+        //    return lyricConfig.EvaluateLUTScale(key);
+        //}
 
-        public static Vector5 GetRotation(Color32 key)
-        {
-            if (lyricConfig == null)
-            {
-                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
-                return new Vector5();
-            }
+        //public static Vector5 GetRotation(Color32 key)
+        //{
+        //    if (lyricConfig == null)
+        //    {
+        //        Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+        //        return new Vector5();
+        //    }
 
-            return lyricConfig.EvaluateLUTRotation(key);
-        }
+        //    return lyricConfig.EvaluateLUTRotation(key);
+        //}
 
 
         // GET CHART LYRIC MATERIAL
         static Dictionary<TMP_FontAsset, Material> matMap = [];
         public static Material? GetChartLyricMaterial(TMP_FontAsset font)
         {
-            if (!hasEmbeddedData)
+            if (!HasEmbeddedData)
             {
                 return null;
             }
@@ -479,12 +484,13 @@ namespace LyricPlus
     public class LyricConfig
     {
         public Color defaultColor = new(1, 1, 1, 1); // All text with #FFFFFF not controlled by a LUT is replaced with defaultColor
-        
+
         // LUT
-        private Dictionary<Color32, Color32> lutColor    = [];
-        private Dictionary<Color32, Vector3> lutOffset   = [];
-        private Dictionary<Color32, Vector4> lutScale    = [];
-        private Dictionary<Color32, Vector5> lutRotation = [];
+        //private readonly Dictionary<Color32, Color32> lutColor    = [];
+        //private readonly Dictionary<Color32, Vector3> lutOffset   = [];
+        //private readonly Dictionary<Color32, Vector4> lutScale    = [];
+        //private readonly Dictionary<Color32, Vector5> lutRotation = [];
+        private readonly Dictionary<Color32, LUTInfo> lutInfos = [];
 
         public List<ShaderParameter> parameters = [];
 
@@ -555,22 +561,26 @@ namespace LyricPlus
 
         public void SetLUTColor(Color32 key, Color32 value)
         {
-            lutColor[key] = value;
+            lutInfos.GetOrCreateForKey(key, out var info);
+            info.color = value;
         }
 
         public void SetLUTOffset(Color32 key, Vector3 offset)
         {
-            lutOffset[key] = offset;
+            lutInfos.GetOrCreateForKey(key, out var info);
+            info.offset = offset;
         }
 
         public void SetLUTScale(Color32 key, Vector4 scale)
         {
-            lutScale[key] = scale;
+            lutInfos.GetOrCreateForKey(key, out var info);
+            info.scale = scale;
         }
 
         public void SetLUTRotation(Color32 key, Vector5 rotation)
         {
-            lutRotation[key] = rotation;
+            lutInfos.GetOrCreateForKey(key, out var info);
+            info.rotation = rotation;
         }
 
         public void SetVariable(string key, float value)
@@ -595,26 +605,30 @@ namespace LyricPlus
             }
         }
 
-        public Color32 EvaluateLUTColor(Color32 key)
+        public LUTInfo GetLUTInfo(Color32 key)
         {
-            Color32 c = lutColor.GetValueOrDefault(key.WithA(255), key);
+            if (!lutInfos.TryGetValue(key, out var value))
+            {
+                value = new(key.WithA(255));
+                lutInfos[key] = value;
+            }
 
-            return c;
+            return value;
         }
+    }
 
-        public Vector3 EvaluateLUTOffset(Color32 key)
-        {
-            return lutOffset.GetValueOrDefault(key.WithA(255), Vector3.zero);
-        }
+    public class LUTInfo
+    {
+        public Color32 color = new(255, 255, 255, 255);
+        public Vector3 offset = new(0,0,0);
+        public Vector4 scale = new(1,1,1,-1);
+        public Vector5 rotation = new(0,0,0,0,0);
 
-        public Vector3 EvaluateLUTScale(Color32 key)
-        {
-            return lutScale.GetValueOrDefault(key.WithA(255), new Vector4(1, 1, 1, -1));
-        }
+        public LUTInfo() { }
 
-        public Vector5 EvaluateLUTRotation(Color32 key)
+        public LUTInfo(Color32 color) 
         {
-            return lutRotation.GetValueOrDefault(key.WithA(255), Vector5.zero);
+            this.color = color;
         }
     }
 }

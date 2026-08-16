@@ -29,6 +29,7 @@ namespace LyricPlus
             __instance.parentText.fontSharedMaterial = newMat;
         }
 
+
         // This prevents dynamic atlas generation from creating lag spikes as characters from other languages load in
         // Usually this lag is negligable but for more elaborate lyrics stuff this can noticably tank fps if not preloaded
         internal static void PreloadCharacters(TMP_FontAsset font, PlayableLyricData lyrics)
@@ -50,6 +51,7 @@ namespace LyricPlus
             hasPreloadedLyricGlyphs = true;
         }
 
+
         private static void PreloadForFont(string str, TMP_FontAsset font)
         {
             if (font.atlasPopulationMode == AtlasPopulationMode.Static) return;
@@ -64,6 +66,7 @@ namespace LyricPlus
             string missingStr = new(missingChars.ToArray());
             font.TryAddCharacters(missingStr);
         }
+
 
         // Set animation properties 
         static bool _assignedDefault = false;
@@ -110,6 +113,7 @@ namespace LyricPlus
             }
         }
 
+
         // Preprocess away LUT keys to their actual color
         [HarmonyPatch(typeof(SerializedLyricData), "BuildSyllables")]
         [HarmonyPrefix]
@@ -147,7 +151,6 @@ namespace LyricPlus
         }
 
 
-
         // DO ALL THE TRANSFORMATION AND COLORS
         static CharacterData[] charData = new CharacterData[100];
         [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "PreRender")]
@@ -165,7 +168,7 @@ namespace LyricPlus
             int charCount = textInfo.characterCount;
             if (charCount > charData.Length)
             {
-                Array.Resize(ref charData, charCount);
+                Array.Resize(ref charData, charCount * 2);
             }
 
             if (EmbeddedDataManager.lyricConfig != null)
@@ -178,7 +181,8 @@ namespace LyricPlus
                     Color32 col = ptr.color;
 
                     // LUT for offset triggers
-                    Vector3 offset = EmbeddedDataManager.GetOffset(col);
+                    LUTInfo info = EmbeddedDataManager.lyricConfig.GetLUTInfo(col);
+                    Vector3 offset = info.offset;
 
                     Vector3 up = (ptr.vertex_TL.position - ptr.vertex_BL.position).normalized;
                     Vector3 right = (ptr.vertex_TR.position - ptr.vertex_TL.position).normalized;
@@ -188,7 +192,7 @@ namespace LyricPlus
                         up      * offset.y +
                         forward * offset.z;
 
-                    charData[i] = new(worldOffset, right, up, forward, Vector3.zero, false);
+                    charData[i] = new(worldOffset, right, up, forward, Vector3.zero, info, false);
                 }
             }
 
@@ -213,11 +217,10 @@ namespace LyricPlus
                     ref CharacterData data = ref charData[i];
 
                     // LUT for color triggers
-                    Color32 key = col;
-                    col = EmbeddedDataManager.lyricConfig.EvaluateLUTColor(key);
+                    col = data.lut.color;
 
                     // LUT for rotation
-                    Vector5 rotInfo = EmbeddedDataManager.GetRotation(key);
+                    Vector5 rotInfo = data.lut.rotation;
                     Vector3 rotAxisDir = new(rotInfo.x, rotInfo.y, rotInfo.z);
 
                     int rotPivotIndex = rotInfo.v < 0 ? i : Mathf.Clamp((int)rotInfo.v, 0, charCount - 1);
@@ -245,7 +248,7 @@ namespace LyricPlus
                     Quaternion rot = Quaternion.AngleAxis(rotInfo.w, axis.normalized);
 
                     // LUT for scale
-                    Vector4 scaleInfo = EmbeddedDataManager.GetScale(key);
+                    Vector4 scaleInfo = data.lut.scale;
                     Vector3 scale = new(scaleInfo.x, scaleInfo.y, scaleInfo.z);
 
                     int scalePivotIndex = scaleInfo.w < 0 ? i : Mathf.Clamp((int)scaleInfo.w, 0, charCount - 1);
@@ -269,10 +272,10 @@ namespace LyricPlus
                     Vector3 p1 = textInfo.meshInfo[matInd].vertices[vert + 1];
                     Vector3 p2 = textInfo.meshInfo[matInd].vertices[vert + 2];
                     Vector3 p3 = textInfo.meshInfo[matInd].vertices[vert + 3];
-                    textInfo.meshInfo[matInd].vertices[vert + 0] = ScalePointAroundPivot(RotatePointAroundPivot(p0 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
-                    textInfo.meshInfo[matInd].vertices[vert + 1] = ScalePointAroundPivot(RotatePointAroundPivot(p1 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
-                    textInfo.meshInfo[matInd].vertices[vert + 2] = ScalePointAroundPivot(RotatePointAroundPivot(p2 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
-                    textInfo.meshInfo[matInd].vertices[vert + 3] = ScalePointAroundPivot(RotatePointAroundPivot(p3 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 0] = (p0 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 1] = (p1 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 2] = (p2 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 3] = (p3 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
                 }
 
                 // Grabbing that tint / alpha data modified by Prerender
@@ -298,37 +301,18 @@ namespace LyricPlus
             public Vector3 forward;
             public Vector3 pivot;
             public bool pivotCalculated;
+            public LUTInfo lut;
 
-            public CharacterData(Vector3 offset, Vector3 right, Vector3 up, Vector3 forward, Vector3 pivot, bool calculated)
+            public CharacterData(Vector3 offset, Vector3 right, Vector3 up, Vector3 forward, Vector3 pivot, LUTInfo lut, bool calculated)
             {
                 this.offset = offset;
                 this.right = right;
                 this.up = up;
                 this.forward = forward;
                 this.pivot = pivot;
+                this.lut = lut;
                 pivotCalculated = calculated;
             }
-        }
-
-        static Vector3 RotatePointAroundPivot(Vector3 point, Vector3 pivot, Quaternion rotation)
-        {
-            Vector3 dir = point - pivot;
-
-            return pivot + (rotation * dir);
-        }
-
-        static Vector3 ScalePointAroundPivot(Vector3 point, Vector3 pivot, Vector3 right, Vector3 up, Vector3 forward, Vector3 scale)
-        {
-            Vector3 local = point - pivot;
-
-            float x = Vector3.Dot(local, right);
-            float y = Vector3.Dot(local, up);
-            float z = Vector3.Dot(local, forward);
-
-            return pivot
-                + right * (x * scale.x)
-                + up * (y * scale.y)
-                + forward * (z * scale.z);
         }
 
         [HarmonyPatch(typeof(TextMeshPro), "GenerateTextMesh")]
@@ -343,8 +327,8 @@ namespace LyricPlus
         }
 
 
-        static bool hasPreloadedLyricGlyphs = false;
         // On new chart selected
+        static bool hasPreloadedLyricGlyphs = false;
         [HarmonyPatch(typeof(SplineTrackData.DataToGenerate), MethodType.Constructor, typeof(PlayableTrackData))]
         [HarmonyPostfix]
         private static void TrackConstructor(PlayableTrackData trackData)
@@ -355,18 +339,34 @@ namespace LyricPlus
             hasPreloadedLyricGlyphs = false;
         }
 
-        //[HarmonyPatch(typeof(BurstFft), "Transform")]
-        //[HarmonyPrefix]
-        //internal static bool BurstFft_TransformPrefix()
-        //{
-        //    return false;
-        //}
+        [HarmonyPatch(typeof(TMP_InputField), "OnEnable")]
+        [HarmonyPostfix]
+        static void TMPInputField_OnEnablePostfix(TMP_InputField __instance)
+        {
+            if (__instance.gameObject.name == "LyricText")
+            {
+                __instance.lineLimit = 0;
+            }
+        }
 
-        //[HarmonyPatch(typeof(BackgroundLyricLineDisplay), "LateUpdate")]
-        //[HarmonyPrefix]
-        //internal static bool BackgroundLyricLineDisplay_LateUpdatePrefix()
-        //{
-        //    return false;
-        //}
+        // Truncate timeline text so that big text doesn't cover the entire editor
+        [HarmonyPatch(typeof(DetailedTimelineTextBar), "AddText")]
+        [HarmonyPostfix]
+        static void DetailedTimelineTextBar_AddTextPostfix(DetailedTimelineTextBar __instance, ref List<DetailedTimelineText> ___usedText)
+        {
+            if (___usedText == null || ___usedText.Count <= 0) return;
+
+            var lastTextElement = ___usedText[^1];
+
+            if (lastTextElement == null || lastTextElement.Text == null) return;
+
+            lastTextElement.Text.enableAutoSizing = false;
+            lastTextElement.Text.autoSizeTextContainer = false;
+            lastTextElement.Text.overflowMode = TextOverflowModes.Ellipsis;
+
+            var rect = lastTextElement.RectTransform;
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 200f);
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 80f);
+        }
     }
 }

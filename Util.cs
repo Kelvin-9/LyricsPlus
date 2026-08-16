@@ -47,6 +47,30 @@ namespace LyricPlus
             return new Vector4(vec);
         }
 
+        public static Vector3 RotateAroundPivot(this Vector3 point, Vector3 pivot, Quaternion rotation)
+        {
+            Vector3 dir = point - pivot;
+
+            return pivot + (rotation * dir);
+        }
+
+        public static Vector3 ScaleAroundPivot(this Vector3 point, Vector3 pivot, Vector3 right, Vector3 up, Vector3 forward, Vector3 scale)
+        {
+            // Most of the time it will be scale of 1 as this runs regardless of whether there is scaling or not
+            if (scale.sqrMagnitude == 1) return point;  
+
+            Vector3 local = point - pivot;
+
+            float x = Vector3.Dot(local, right);
+            float y = Vector3.Dot(local, up);
+            float z = Vector3.Dot(local, forward);
+
+            return pivot
+                + right * (x * scale.x)
+                + up * (y * scale.y)
+                + forward * (z * scale.z);
+        }
+
         public static UnityEngine.Color LerpHSV(UnityEngine.Color a, UnityEngine.Color b, float t)
         {
             UnityEngine.Color.RGBToHSV(a, out float h1, out float s1, out float v1);

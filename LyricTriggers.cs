@@ -22,7 +22,7 @@ namespace LyricPlus
         internal static void LoadTriggers(LyricTriggerEmbedData data)
         {
             ClearAll();
-            if (!EmbeddedDataManager.hasEmbeddedData) return;
+            if (!EmbeddedDataManager.HasEmbeddedData) return;
 
             LUTKeys = data.colorKeys;
             LUTBaseKeys = data.colorKeys;
@@ -97,7 +97,7 @@ namespace LyricPlus
             )
         {
             ClearAll();
-            if (!EmbeddedDataManager.hasEmbeddedData) return;
+            if (!EmbeddedDataManager.HasEmbeddedData) return;
 
             hasTriggers = colorTriggers.Count + setTriggers.Count + offsetTriggers.Count + scaleTriggers.Count + rotateTriggers.Count > 0;
 
@@ -153,6 +153,11 @@ namespace LyricPlus
         internal static void ClearAll()
         {
             foreach (string key in LUTKeys.Keys)
+            {
+                TriggerManager.ClearTriggers(key);
+            }
+
+            foreach (string key in setTriggers.Keys)
             {
                 TriggerManager.ClearTriggers(key);
             }

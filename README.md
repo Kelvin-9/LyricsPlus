@@ -16,7 +16,7 @@
 ### Miscellaneous
 -  Preloads fonts so that glyphs from fallback fonts don't cause lag spikes
 -  Default lyric settings to change how lyrics look on all charts that aren't modded
--  A lot of what you do with this mod is in the quick mod menu so check that first
+-  Truncated lyric timeline text so that big text doesn't cover the whole screen in chart editor
 
 ## Triggers
 Because I am lazy I will paste the documentation I have in the trigger file template here again.

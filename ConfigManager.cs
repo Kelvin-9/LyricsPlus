@@ -562,7 +562,7 @@ namespace LyricPlus
                     "LyricPlus_ModSettings_EmbedTriggerFile",
                     () =>
                     {
-                        if (!EmbeddedDataManager.hasEmbeddedData)
+                        if (!EmbeddedDataManager.HasEmbeddedData)
                         {
                             Debug.Log("No embedded data, embedding default embed settings first");
 

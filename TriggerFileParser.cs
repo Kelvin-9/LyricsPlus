@@ -426,7 +426,7 @@ namespace LyricPlus
             }
         }
 
-        /// - SCALE [LUTindex] [time] (startScale) <(endScale) [duration]> <"easing">
+        /// - SCALE [LUTindex] [time] (startScale) [pivot] <(endScale) [duration]> <"easing">
         ///     Scales all text with LUTindex around pivot
         static readonly string scaleUsage = "SCALE \"LUTentry\" [time] (startScale) [pivot] <(endScale) [duration]> <\"easing\">";
         void ParseSCALE(string[] tokens)
