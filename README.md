@@ -43,7 +43,7 @@ LUT color1 #01FFFF<br><br>
 - Replaces all text's color with color tag corresponding to the LUT entry's color to the new color "#startColor" and transitions to "#endColor" over [duration]
 - Make sure that the LUT command is called before using COLOR for that entry
 <i>
-LUT color1 #01FFFF
+LUT color1 #01FFFF<br>
 COLOR color1 10.0 #FF0000 #00FF00 1.2<br><br>
 </i>
   
@@ -72,7 +72,7 @@ SCALE color1 10.0 (1,1,1) 0 (1,2,1) 2.0 InOutQuint<br><br>
 - Increases the offset based on previous OFFSET/RELATIVEOFFSET trigger on this "LUTentry"
 - For example, offsetting by (0,1,0) then doing RELATIVEOFFSET by (0,1,0) will make the text go to (0,2,0)
 <i>
-OFFSET color1 30.5 (0,0,0)
+OFFSET color1 30.5 (0,0,0)<br>
 RELATIVEOFFSET color1 31 (0,1,0)<br><br>
 </i>
 
@@ -88,13 +88,13 @@ ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 InOutQuint<br><br>
 - Rotates around the previous trigger's end axis and pivot, increasing the angle by [degreesIncrease] and moving axis towards (endAxis) over [duration]
 - Makes writing consecutive rotations easier and compatible with REPEAT loops
 <i>
-ROTATE color1 9 (0,0,1) 0                               // Set up axis and pivot
-RELATIVEROTATE color1 10.2 (0,0,1) 20 2 OutSine         // Rotate around previous axis (0,0,1) and pivot index 0 by 20 degrees
-RELATIVEROTATE color1 11.2 (0,0,1) 20 2 OutSine         // Do it again, it is now 40 degrees around z axis<br><br>
+ROTATE color1 9 (0,0,1) 0<br>
+RELATIVEROTATE color1 10.2 (0,0,1) 20 2 OutSine<br>
+RELATIVEROTATE color1 11.2 (0,0,1) 20 2 OutSine<br><br>
 </i>
 
 ### MACROS
-<b>REPEAT [numRepeats] interval [timeInterva]  
+<b>REPEAT [numRepeats] interval [timeInterval]  
 ...commands go here...  
 ENDREPEAT</b>
 <br><br>
