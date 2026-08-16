@@ -271,6 +271,11 @@ namespace LyricPlus
             this.w = w;
         }
 
+        public override string ToString()
+        {
+            return $"({x},{y},{z},{w})";
+        }
+
         public static Vector4 LerpUnclamped(Vector4 a, Vector4 b, float t)
         {
             float x = Mathf.LerpUnclamped(a.x, b.x, t);

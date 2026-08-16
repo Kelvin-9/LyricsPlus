@@ -86,13 +86,13 @@ namespace LyricPlus
         public static bool LoadTriggersFromLyrFile(PlayableTrackData playableData)
         {
             TriggerFileParser parser = new();
-            bool sucessful = parser.LoadTriggersFromFile(playableData, out var colorKeys, out var colorTriggers, out var setTriggers, out var offsetTriggers, out var rotationTriggers);
+            bool sucessful = parser.LoadTriggersFromFile(playableData, out var colorKeys, out var colorTriggers, out var setTriggers, out var offsetTriggers, out var scaleTriggers, out var rotationTriggers);
             if (!sucessful || (colorTriggers.Count == 0 && setTriggers.Count == 0))
             {
                 return false;
             }
 
-            LyricTriggers.LoadTriggers(colorTriggers, colorKeys, setTriggers, offsetTriggers, rotationTriggers);
+            LyricTriggers.LoadTriggers(colorTriggers, colorKeys, setTriggers, offsetTriggers, scaleTriggers, rotationTriggers);
 
             return true;
         }
@@ -318,6 +318,17 @@ namespace LyricPlus
             lyricConfig.SetLUTOffset(key, offset);
         }
 
+        public static void ModifyScale(Color32 key, Vector4 scale)
+        {
+            if (lyricConfig == null)
+            {
+                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+                return;
+            }
+
+            lyricConfig.SetLUTScale(key, scale);
+        }
+
         public static void ModifyRotation(Color32 key, Vector5 rotation)
         {
             if (lyricConfig == null)
@@ -350,6 +361,17 @@ namespace LyricPlus
             }
 
             return lyricConfig.EvaluateLUTOffset(key);
+        }
+
+        public static Vector4 GetScale(Color32 key)
+        {
+            if (lyricConfig == null)
+            {
+                Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
+                return new Vector4(1, 1, 1, -1);
+            }
+
+            return lyricConfig.EvaluateLUTScale(key);
         }
 
         public static Vector5 GetRotation(Color32 key)
@@ -461,6 +483,7 @@ namespace LyricPlus
         // LUT
         private Dictionary<Color32, Color32> lutColor    = [];
         private Dictionary<Color32, Vector3> lutOffset   = [];
+        private Dictionary<Color32, Vector4> lutScale    = [];
         private Dictionary<Color32, Vector5> lutRotation = [];
 
         public List<ShaderParameter> parameters = [];
@@ -540,6 +563,11 @@ namespace LyricPlus
             lutOffset[key] = offset;
         }
 
+        public void SetLUTScale(Color32 key, Vector4 scale)
+        {
+            lutScale[key] = scale;
+        }
+
         public void SetLUTRotation(Color32 key, Vector5 rotation)
         {
             lutRotation[key] = rotation;
@@ -577,6 +605,11 @@ namespace LyricPlus
         public Vector3 EvaluateLUTOffset(Color32 key)
         {
             return lutOffset.GetValueOrDefault(key.WithA(255), Vector3.zero);
+        }
+
+        public Vector3 EvaluateLUTScale(Color32 key)
+        {
+            return lutScale.GetValueOrDefault(key.WithA(255), new Vector4(1, 1, 1, -1));
         }
 
         public Vector5 EvaluateLUTRotation(Color32 key)

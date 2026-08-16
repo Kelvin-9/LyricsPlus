@@ -218,37 +218,61 @@ namespace LyricPlus
 
                     // LUT for rotation
                     Vector5 rotInfo = EmbeddedDataManager.GetRotation(key);
-                    Vector3 dir = new(rotInfo.x, rotInfo.y, rotInfo.z);
-                    Vector3 axis =
-                        data.right   * dir.x +
-                        data.up      * dir.y +
-                        data.forward * dir.z;
-                    float degrees = rotInfo.w;
-                    int pivotIndex = rotInfo.v < 0 ? i : Mathf.Clamp((int)rotInfo.v, 0, charCount - 1);
-                    ref CharacterData pivotData = ref charData[pivotIndex];
-                    ref TMP_CharacterInfo pivotChar = ref textInfo.characterInfo[pivotIndex];
-                    if (!pivotData.pivotCalculated)
+                    Vector3 rotAxisDir = new(rotInfo.x, rotInfo.y, rotInfo.z);
+
+                    int rotPivotIndex = rotInfo.v < 0 ? i : Mathf.Clamp((int)rotInfo.v, 0, charCount - 1);
+                    ref CharacterData rotPivotData = ref charData[rotPivotIndex];
+                    ref TMP_CharacterInfo rotPivotChar = ref textInfo.characterInfo[rotPivotIndex];
+
+                    if (!rotPivotData.pivotCalculated)
                     {
-                        pivotData.pivot = (
-                            pivotChar.vertex_BL.position +
-                            pivotChar.vertex_BR.position +
-                            pivotChar.vertex_TL.position +
-                            pivotChar.vertex_TR.position
-                        ) * 0.25f + data.offset;
+                        rotPivotData.pivot = (
+                            rotPivotChar.vertex_BL.position +
+                            rotPivotChar.vertex_BR.position +
+                            rotPivotChar.vertex_TL.position +
+                            rotPivotChar.vertex_TR.position
+                        ) * 0.25f + rotPivotData.offset;
 
-                        pivotData.pivotCalculated = true;
+                        rotPivotData.pivotCalculated = true;
                     }
+                    Vector3 rotPivot = rotPivotData.pivot;
 
-                    Vector3 pivot = pivotData.pivot;
+                    Vector3 axis =
+                        rotPivotData.right * rotAxisDir.x +
+                        rotPivotData.up * rotAxisDir.y +
+                        rotPivotData.forward * rotAxisDir.z;
+
+                    Quaternion rot = Quaternion.AngleAxis(rotInfo.w, axis.normalized);
+
+                    // LUT for scale
+                    Vector4 scaleInfo = EmbeddedDataManager.GetScale(key);
+                    Vector3 scale = new(scaleInfo.x, scaleInfo.y, scaleInfo.z);
+
+                    int scalePivotIndex = scaleInfo.w < 0 ? i : Mathf.Clamp((int)scaleInfo.w, 0, charCount - 1);
+                    ref CharacterData scalePivotData = ref charData[scalePivotIndex];
+                    ref TMP_CharacterInfo scalePivotChar = ref textInfo.characterInfo[scalePivotIndex];
+
+                    if (!scalePivotData.pivotCalculated)
+                    {
+                        scalePivotData.pivot = (
+                            scalePivotChar.vertex_BL.position +
+                            scalePivotChar.vertex_BR.position +
+                            scalePivotChar.vertex_TL.position +
+                            scalePivotChar.vertex_TR.position
+                        ) * 0.25f + scalePivotData.offset;
+
+                        scalePivotData.pivotCalculated = true;
+                    }
+                    Vector3 scalePivot = scalePivotData.pivot;
+
                     Vector3 p0 = textInfo.meshInfo[matInd].vertices[vert + 0];
                     Vector3 p1 = textInfo.meshInfo[matInd].vertices[vert + 1];
                     Vector3 p2 = textInfo.meshInfo[matInd].vertices[vert + 2];
                     Vector3 p3 = textInfo.meshInfo[matInd].vertices[vert + 3];
-                    Quaternion rot = Quaternion.AngleAxis(degrees, axis.normalized);
-                    textInfo.meshInfo[matInd].vertices[vert + 0] = RotatePointAroundPivot(p0 + data.offset, pivot, rot);
-                    textInfo.meshInfo[matInd].vertices[vert + 1] = RotatePointAroundPivot(p1 + data.offset, pivot, rot);
-                    textInfo.meshInfo[matInd].vertices[vert + 2] = RotatePointAroundPivot(p2 + data.offset, pivot, rot);
-                    textInfo.meshInfo[matInd].vertices[vert + 3] = RotatePointAroundPivot(p3 + data.offset, pivot, rot);
+                    textInfo.meshInfo[matInd].vertices[vert + 0] = ScalePointAroundPivot(RotatePointAroundPivot(p0 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 1] = ScalePointAroundPivot(RotatePointAroundPivot(p1 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 2] = ScalePointAroundPivot(RotatePointAroundPivot(p2 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 3] = ScalePointAroundPivot(RotatePointAroundPivot(p3 + data.offset, rotPivot, rot), scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
                 }
 
                 // Grabbing that tint / alpha data modified by Prerender
@@ -291,6 +315,20 @@ namespace LyricPlus
             Vector3 dir = point - pivot;
 
             return pivot + (rotation * dir);
+        }
+
+        static Vector3 ScalePointAroundPivot(Vector3 point, Vector3 pivot, Vector3 right, Vector3 up, Vector3 forward, Vector3 scale)
+        {
+            Vector3 local = point - pivot;
+
+            float x = Vector3.Dot(local, right);
+            float y = Vector3.Dot(local, up);
+            float z = Vector3.Dot(local, forward);
+
+            return pivot
+                + right * (x * scale.x)
+                + up * (y * scale.y)
+                + forward * (z * scale.z);
         }
 
         [HarmonyPatch(typeof(TextMeshPro), "GenerateTextMesh")]

@@ -13,6 +13,7 @@ namespace LyricPlus
         private readonly Dictionary<Color32, List<Trigger<Color>>> colorTriggers = [];
         private readonly Dictionary<string, List<Trigger<float>>> setTriggers = [];
         private readonly Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers = [];
+        private readonly Dictionary<Color32, List<Trigger<Vector4>>> scaleTriggers = [];
         private readonly Dictionary<Color32, List<Trigger<Vector5>>> rotateTriggers = [];
 
         readonly List<string[]> lines = [];
@@ -31,6 +32,7 @@ namespace LyricPlus
             out Dictionary<Color32, List<Trigger<Color>>> colorTriggers,
             out Dictionary<string, List<Trigger<float>>> setTriggers,
             out Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers,
+            out Dictionary<Color32, List<Trigger<Vector4>>> scaleTriggers,
             out Dictionary<Color32, List<Trigger<Vector5>>> rotateTriggers
             )
         {
@@ -38,6 +40,7 @@ namespace LyricPlus
             setTriggers = [];
             colorKeys = [];
             offsetTriggers = [];
+            scaleTriggers = [];
             rotateTriggers = [];
             (string? directory, string? fileName) = Util.GetDirectoryFromPlayData(file);
             if (directory == null || fileName == null)
@@ -64,7 +67,9 @@ namespace LyricPlus
             setTriggers = this.setTriggers;
             colorKeys = this.colorKeys;
             offsetTriggers = this.offsetTriggers;
+            scaleTriggers = this.scaleTriggers;
             rotateTriggers = this.rotateTriggers;
+
             return true;
         }
 
@@ -109,6 +114,9 @@ namespace LyricPlus
                     break;
                 case "RELATIVEOFFSET":
                     ParseRelativeOFFSET(tokens);
+                    break;
+                case "SCALE":
+                    ParseSCALE(tokens);
                     break;
                 case "ROTATE":
                     ParseROTATE(tokens);
@@ -415,6 +423,65 @@ namespace LyricPlus
 
                 Vector4 value = ((Vector4)EndValue.Value).WithW(0);
                 offsetTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, 0, new Vector4(), value, isRelative: true));
+            }
+        }
+
+        /// - SCALE [LUTindex] [time] (startScale) <(endScale) [duration]> <"easing">
+        ///     Scales all text with LUTindex around pivot
+        static readonly string scaleUsage = "SCALE \"LUTentry\" [time] (startScale) [pivot] <(endScale) [duration]> <\"easing\">";
+        void ParseSCALE(string[] tokens)
+        {
+            if (tokens.Length < 5)
+            {
+                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {scaleUsage}");
+                return;
+            }
+
+            float? time = ParseTime(tokens[2]);
+            Vector3? StartValue = ParseVector3(tokens[3]);
+            int? pivot = ParseInt(tokens[4]);
+            if (time == null || StartValue == null || pivot == null)
+            {
+                Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {scaleUsage}");
+                return;
+            }
+
+            string LUTindex = tokens[1];
+            string LUTkey = $"LUT_{LUTindex}";
+            if (!colorKeys.ContainsKey(LUTkey))
+            {
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with {lutUsage}");
+                return;
+            }
+
+            Color32 LUTfrom = colorKeys[LUTkey];
+            if (!scaleTriggers.ContainsKey(LUTfrom))
+            {
+                scaleTriggers[LUTfrom] = [];
+            }
+
+
+            if (tokens.Length >= 7)  // Optional 8th parameter for easing, defaults to LINEAR
+            {
+                Vector3? EndValue = ParseVector3(tokens[5]);
+                float? duration = ParseFloat(tokens[6]);
+                int ease = tokens.Length > 7 ? (int)Easing.ParseEase(tokens[7]) : 0;
+                if (EndValue == null || duration == null)
+                {
+                    Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                    Debug.LogError($"Usage:\n   {scaleUsage}");
+                    return;
+                }
+
+                scaleTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, duration.Value, ((Vector4)StartValue.Value).WithW(pivot.Value), ((Vector4)EndValue.Value).WithW(ease)));
+
+            }
+            else if (tokens.Length >= 5)
+            {
+                Vector4 value = ((Vector4)StartValue.Value).WithW(pivot.Value);
+                scaleTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, value));
             }
         }
 
