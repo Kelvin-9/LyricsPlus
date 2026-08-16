@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using DG.Tweening;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -105,6 +106,9 @@ namespace LyricPlus
                     break;
                 case "OFFSET":
                     ParseOFFSET(tokens);
+                    break;
+                case "RELATIVEOFFSET":
+                    ParseRelativeOFFSET(tokens);
                     break;
                 case "ROTATE":
                     ParseROTATE(tokens);
@@ -350,6 +354,70 @@ namespace LyricPlus
             }
         }
 
+
+        /// - RELATIVEOFFSET "LUTindex" [time] (offset) <[duration]> <"easing">
+        static readonly string relativeoffsetUsage = "RelativeOFFSET \"LUTentry\" [time] (offset) <[duration]> <\"easing\">";
+        void ParseRelativeOFFSET(string[] tokens)
+        {
+            if (tokens.Length < 4)
+            {
+                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {relativeoffsetUsage}");
+                return;
+            }
+
+            float? time = ParseTime(tokens[2]);
+            if (time == null)
+            {
+                Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {relativeoffsetUsage}");
+                return;
+            }
+
+            string LUTindex = tokens[1];
+            string LUTkey = $"LUT_{LUTindex}";
+            if (!colorKeys.ContainsKey(LUTkey))
+            {
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with {lutUsage}");
+                return;
+            }
+
+            Color32 LUTfrom = colorKeys[LUTkey];
+            if (!offsetTriggers.ContainsKey(LUTfrom))
+            {
+                offsetTriggers[LUTfrom] = [];
+            }
+
+            if (tokens.Length >= 5)  // Optional 6th parameter for easing, defaults to LINEAR
+            {
+                Vector3? EndValue = ParseVector3(tokens[3]);
+                float? duration = ParseFloat(tokens[4]);
+                int ease = tokens.Length > 5 ? (int)Easing.ParseEase(tokens[5]) : 0;
+                if (EndValue == null || duration == null)
+                {
+                    Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
+                    Debug.LogError($"Usage:\n   {relativeoffsetUsage}");
+                    return;
+                }
+
+                offsetTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, duration.Value, new Vector4().WithW(ease), EndValue.Value, isRelative: true));
+
+            }
+            else if (tokens.Length >= 4)
+            {
+                Vector3? EndValue = ParseVector3(tokens[3]);
+                if (LUTindex == null || EndValue == null)
+                {
+                    Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}");
+                    Debug.LogError($"Usage:\n   {relativeoffsetUsage}");
+                    return;
+                }
+
+                Vector4 value = ((Vector4)EndValue.Value).WithW(0);
+                offsetTriggers[LUTfrom].Add(new Trigger<Vector4>(time.Value, 0, new Vector4(), value, isRelative: true));
+            }
+        }
+
         /// - ROTATE [LUTindex] [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <"easing">
         ///     Rotates all characters with [LUTindex] at [time] around (axis) and the character [pivotIndex] by [degrees]
         static readonly string rotateUsage = "ROTATE \"LUTentry\" [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <\"easing\">";
@@ -421,9 +489,9 @@ namespace LyricPlus
             }
         }
 
-        /// - ROTATERELATIVE [LUTindex] [time] (endAxis) [endDegrees] [duration] <"easing">
+        /// - RELATIVEROTATE [LUTindex] [time] (endAxis) [endDegrees] <[duration]> <"easing">
         ///     Continues the rotation from previous trigger, effectively using the previous trigger's end values as this trigger's start value
-        static readonly string relativeRotateUsage = "RELATIVEROTATE \"LUTentry\" [time] (endAxis) [endDegrees] [duration] <\"easing\">";
+        static readonly string relativeRotateUsage = "RelativeROTATE \"LUTentry\" [time] (endAxis) [degreesIncrease] <[duration]> <\"easing\">";
         void ParseRelativeROTATE(string[] tokens)
         {
             if (tokens.Length < 5)
@@ -457,9 +525,9 @@ namespace LyricPlus
 
             Vector3? EndAxis = ParseVector3(tokens[3]);
             float? endDegrees = ParseFloat(tokens[4]);
-            float? duration = ParseFloat(tokens[5]);
-            int ease = tokens.Length > 6 ? (int)Easing.ParseEase(tokens[6]) : 0;
-            if (EndAxis == null || endDegrees == null || duration == null)
+            float duration = tokens.Length > 5 ? ParseFloat(tokens[5]) ?? 0 : 0;
+            int ease = (int)(tokens.Length > 6 ? Easing.ParseEase(tokens[6]) : Ease.Linear);
+            if (EndAxis == null || endDegrees == null)
             {
                 Debug.LogError($"Could not parse tokens from line:\n{string.Join(' ', tokens)}!");
                 Debug.LogError($"Usage:\n   {relativeRotateUsage}");
@@ -468,8 +536,8 @@ namespace LyricPlus
 
             rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(
                 time.Value,
-                duration.Value,
-                new Vector5(EndAxis.Value, 0, 0),                                         // Start value packs pivot
+                duration,
+                new Vector5(EndAxis.Value, 0, -1),                                        // RELATIVEROTATE triggers default to rotating on itself (with -1 pivot index)
                 new Vector5(EndAxis.Value, endDegrees.Value, ease),                       // End value packs ease
                 isRelative: true
             ));

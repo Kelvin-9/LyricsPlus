@@ -1,5 +1,7 @@
 ﻿using HarmonyLib;
 using System;
+using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 
@@ -8,10 +10,9 @@ namespace LyricPlus
     [HarmonyPatch]
     public class Patches
     {
-        // Swaps material with one that uses unmodified textmeshpro shader
-        [HarmonyPatch(typeof(CustomTextMeshProHelper), "SetFont")]
+        [HarmonyPatch(typeof(CustomTextMeshProHelper), "OnEnabled")]
         [HarmonyPostfix]
-        internal static void CustomTextMeshProHelper_SetFontPostfix(CustomTextMeshProHelper __instance)
+        internal static void CustomTextMeshProHelper_OnEnabledPostfix(CustomTextMeshProHelper __instance)
         {
             if (!ConfigManager.config.enableLyricPlus) return;
 
@@ -20,12 +21,48 @@ namespace LyricPlus
 
             // Replace lyric's LUT material with default TextMeshPro/Distance Field stored in AssetBundle
             Material? newMat = Plugin.GetTextMaterial(__instance.parentText.font);
-            if (newMat == null) 
+            if (newMat == null)
             {
                 return;
             }
 
             __instance.parentText.fontSharedMaterial = newMat;
+        }
+
+        // This prevents dynamic atlas generation from creating lag spikes as characters from other languages load in
+        // Usually this lag is negligable but for more elaborate lyrics stuff this can noticably tank fps if not preloaded
+        internal static void PreloadCharacters(TMP_FontAsset font, PlayableLyricData lyrics)
+        {
+            if (font == null) return;
+
+            StringBuilder sb = new();
+            foreach (var phrase in lyrics.Phrases)
+            {
+                sb.Append(phrase.Text);
+            }
+            string str = sb.ToString();
+
+            foreach(var fallback in font.fallbackFontAssetTable)
+            {
+                PreloadForFont(str, fallback);
+            }
+
+            hasPreloadedLyricGlyphs = true;
+        }
+
+        private static void PreloadForFont(string str, TMP_FontAsset font)
+        {
+            if (font.atlasPopulationMode == AtlasPopulationMode.Static) return;
+
+            font.HasCharacters(str, out List<char> missingChars);
+            if (missingChars == null || missingChars.Count == 0)
+            {
+                Debug.Log("No missing characters");
+                return;
+            }
+
+            string missingStr = new(missingChars.ToArray());
+            font.TryAddCharacters(missingStr);
         }
 
         // Set animation properties 
@@ -35,7 +72,10 @@ namespace LyricPlus
         [HarmonyPrefix]
         internal static void BackgroundLyricLineDisplay_SetPhrasePrefix(BackgroundLyricLineDisplay __instance)
         {
-            if (__instance.textRenderer.fontSharedMaterial.shader != Plugin.textShader) return;
+            if (!hasPreloadedLyricGlyphs)
+            {
+                PreloadCharacters(Plugin.mainLyricFont, __instance.GetLyrics());
+            }
 
             BackgroundLyricLineDisplay.AnimTimingSettings anim = __instance.animTimingSettings;
             if (!_assignedDefault)
@@ -63,12 +103,11 @@ namespace LyricPlus
             {
                 // Set textbox size to effectively infinite when maxed out, otherwise scale linearly
                 float size = EmbeddedDataManager.lyricConfig.textboxSize == 1 ? 9999999f : EmbeddedDataManager.lyricConfig.textboxSize * 100; 
-                __instance.textRenderer.margin = new Vector4(-size, __instance.textRenderer.margin.y, -size, __instance.textRenderer.margin.w);
+                __instance.textRenderer.margin = new UnityEngine.Vector4(-size, __instance.textRenderer.margin.y, -size, __instance.textRenderer.margin.w);
 
                 // Phrasing settings
                 __instance.unspokenWordAlpha = EmbeddedDataManager.lyricConfig.unspokenWordAlpha;
             }
-
         }
 
         // Preprocess away LUT keys to their actual color
@@ -108,26 +147,52 @@ namespace LyricPlus
         }
 
 
-        // Apply color
+
+        // DO ALL THE TRANSFORMATION AND COLORS
+        static CharacterData[] charData = new CharacterData[100];
         [HarmonyPatch(typeof(BackgroundLyricLineDisplay), "PreRender")]
         [HarmonyPostfix]
-        internal static void BackgroundLyricLineDisplay_PrerenderPostfix(ref TMP_TextInfo textInfo)
+        internal static void BackgroundLyricLineDisplay_PrerenderPostfix(BackgroundLyricLineDisplay __instance, ref TMP_TextInfo textInfo)
         {
             if (textInfo.textComponent.fontSharedMaterial.shader != Plugin.textShader) return;
+            
+            // Get fadein alpha
+            PlayState playState = __instance.GetPlayState();
+            TrackTick a = (playState != null) ? playState.currentTrackTick : default;
+            float distanceAlpha = a.LinearMap(__instance.fadeOutRange).OneMinus() * a.LinearMap(__instance.fadeInRange) * a.LinearMap(__instance.fadeInToFullRange).LinearMapTo(__instance.animTimingSettings.preFadeInFullAlpha, 1f);
 
-            Transform transform = textInfo.textComponent.transform;
-            Vector3[] pivots = new Vector3[textInfo.characterCount];
-            for (int i = 0; i < textInfo.characterCount; i++)
+
+            int charCount = textInfo.characterCount;
+            if (charCount > charData.Length)
             {
-                pivots[i] = (
-                    textInfo.characterInfo[i].vertex_BL.position +
-                    textInfo.characterInfo[i].vertex_BR.position +
-                    textInfo.characterInfo[i].vertex_TL.position +
-                    textInfo.characterInfo[i].vertex_TR.position
-                ) / 4f;
+                Array.Resize(ref charData, charCount);
             }
 
-            for (int i = 0; i < textInfo.characterCount; i++)
+            if (EmbeddedDataManager.lyricConfig != null)
+            {
+                for (int i = 0; i < charCount; i++)
+                {
+                    ref TMP_CharacterInfo ptr = ref textInfo.characterInfo[i];
+                    if (!ptr.isVisible) continue;
+
+                    Color32 col = ptr.color;
+
+                    // LUT for offset triggers
+                    Vector3 offset = EmbeddedDataManager.GetOffset(col);
+
+                    Vector3 up = (ptr.vertex_TL.position - ptr.vertex_BL.position).normalized;
+                    Vector3 right = (ptr.vertex_TR.position - ptr.vertex_TL.position).normalized;
+                    Vector3 forward = Vector3.Cross(right, up);
+                    Vector3 worldOffset =
+                        right   * offset.x +
+                        up      * offset.y +
+                        forward * offset.z;
+
+                    charData[i] = new(worldOffset, right, up, forward, Vector3.zero, false);
+                }
+            }
+
+            for (int i = 0; i < charCount; i++)
             {
                 ref TMP_CharacterInfo ptr = ref textInfo.characterInfo[i];
                 if (!ptr.isVisible) continue;
@@ -145,44 +210,50 @@ namespace LyricPlus
 
                 if (EmbeddedDataManager.lyricConfig != null)
                 {
+                    ref CharacterData data = ref charData[i];
+
                     // LUT for color triggers
                     Color32 key = col;
                     col = EmbeddedDataManager.lyricConfig.EvaluateLUTColor(key);
-
-                    // LUT for offset triggers
-                    Vector3 p0 = textInfo.meshInfo[matInd].vertices[vert + 0];
-                    Vector3 p1 = textInfo.meshInfo[matInd].vertices[vert + 1];
-                    Vector3 p2 = textInfo.meshInfo[matInd].vertices[vert + 2];
-                    Vector3 p3 = textInfo.meshInfo[matInd].vertices[vert + 3];
-
-                    Vector3 offset = EmbeddedDataManager.GetOffset(key);
-
-                    Vector3 up = ptr.vertex_TL.position - ptr.vertex_BL.position;
-                    Vector3 right = ptr.vertex_TR.position - ptr.vertex_TL.position;
-                    Vector3 forward = Vector3.Cross(right, up);
-                    Vector3 worldOffset =
-                        right.normalized   * offset.x +
-                        up.normalized      * offset.y +
-                        forward.normalized * offset.z;
 
                     // LUT for rotation
                     Vector5 rotInfo = EmbeddedDataManager.GetRotation(key);
                     Vector3 dir = new(rotInfo.x, rotInfo.y, rotInfo.z);
                     Vector3 axis =
-                        right.normalized   * dir.x +
-                        up.normalized      * dir.y +
-                        forward.normalized * dir.z;
+                        data.right   * dir.x +
+                        data.up      * dir.y +
+                        data.forward * dir.z;
                     float degrees = rotInfo.w;
-                    int pivotIndex = Mathf.Clamp((int)rotInfo.v, 0, pivots.Length - 1);
+                    int pivotIndex = rotInfo.v < 0 ? i : Mathf.Clamp((int)rotInfo.v, 0, charCount - 1);
+                    ref CharacterData pivotData = ref charData[pivotIndex];
+                    ref TMP_CharacterInfo pivotChar = ref textInfo.characterInfo[pivotIndex];
+                    if (!pivotData.pivotCalculated)
+                    {
+                        pivotData.pivot = (
+                            pivotChar.vertex_BL.position +
+                            pivotChar.vertex_BR.position +
+                            pivotChar.vertex_TL.position +
+                            pivotChar.vertex_TR.position
+                        ) * 0.25f + data.offset;
 
-                    textInfo.meshInfo[matInd].vertices[vert + 0] = RotatePointAroundPivot(p0, pivots[pivotIndex], axis, degrees) + worldOffset;
-                    textInfo.meshInfo[matInd].vertices[vert + 1] = RotatePointAroundPivot(p1, pivots[pivotIndex], axis, degrees) + worldOffset;
-                    textInfo.meshInfo[matInd].vertices[vert + 2] = RotatePointAroundPivot(p2, pivots[pivotIndex], axis, degrees) + worldOffset;
-                    textInfo.meshInfo[matInd].vertices[vert + 3] = RotatePointAroundPivot(p3, pivots[pivotIndex], axis, degrees) + worldOffset;
+                        pivotData.pivotCalculated = true;
+                    }
+
+                    Vector3 pivot = pivotData.pivot;
+                    Vector3 p0 = textInfo.meshInfo[matInd].vertices[vert + 0];
+                    Vector3 p1 = textInfo.meshInfo[matInd].vertices[vert + 1];
+                    Vector3 p2 = textInfo.meshInfo[matInd].vertices[vert + 2];
+                    Vector3 p3 = textInfo.meshInfo[matInd].vertices[vert + 3];
+                    Quaternion rot = Quaternion.AngleAxis(degrees, axis.normalized);
+                    textInfo.meshInfo[matInd].vertices[vert + 0] = RotatePointAroundPivot(p0 + data.offset, pivot, rot);
+                    textInfo.meshInfo[matInd].vertices[vert + 1] = RotatePointAroundPivot(p1 + data.offset, pivot, rot);
+                    textInfo.meshInfo[matInd].vertices[vert + 2] = RotatePointAroundPivot(p2 + data.offset, pivot, rot);
+                    textInfo.meshInfo[matInd].vertices[vert + 3] = RotatePointAroundPivot(p3 + data.offset, pivot, rot);
                 }
 
                 // Grabbing that tint / alpha data modified by Prerender
-                float alpha = col.a * textInfo.meshInfo[matInd].colors32[vert].a / 255f;
+                bool ignoreTint = col.a == 254; // OVERRIDE TINT IF ALPHA OF LUT IS EXACTLY 254 (hacky i know)
+                float alpha = col.a * (ignoreTint ? distanceAlpha : (textInfo.meshInfo[matInd].colors32[vert].a / 255f));
                 col = new Color32(col.r, col.g, col.b, (byte)alpha);
 
                 textInfo.meshInfo[matInd].colors32[vert + 0] = col;
@@ -190,12 +261,34 @@ namespace LyricPlus
                 textInfo.meshInfo[matInd].colors32[vert + 2] = col;
                 textInfo.meshInfo[matInd].colors32[vert + 3] = col;
             }
+
+            for (int i = 0; i < charCount; i++)
+                charData[i].pivotCalculated = false;
         }
 
-        static Vector3 RotatePointAroundPivot(Vector3 point, Vector3 pivot, Vector3 axis, float degrees)
+        struct CharacterData
+        {
+            public Vector3 offset;
+            public Vector3 right;
+            public Vector3 up;
+            public Vector3 forward;
+            public Vector3 pivot;
+            public bool pivotCalculated;
+
+            public CharacterData(Vector3 offset, Vector3 right, Vector3 up, Vector3 forward, Vector3 pivot, bool calculated)
+            {
+                this.offset = offset;
+                this.right = right;
+                this.up = up;
+                this.forward = forward;
+                this.pivot = pivot;
+                pivotCalculated = calculated;
+            }
+        }
+
+        static Vector3 RotatePointAroundPivot(Vector3 point, Vector3 pivot, Quaternion rotation)
         {
             Vector3 dir = point - pivot;
-            Quaternion rotation = Quaternion.AngleAxis(degrees, axis.normalized);
 
             return pivot + (rotation * dir);
         }
@@ -212,6 +305,7 @@ namespace LyricPlus
         }
 
 
+        static bool hasPreloadedLyricGlyphs = false;
         // On new chart selected
         [HarmonyPatch(typeof(SplineTrackData.DataToGenerate), MethodType.Constructor, typeof(PlayableTrackData))]
         [HarmonyPostfix]
@@ -220,6 +314,21 @@ namespace LyricPlus
             // Load chart's embedded data
             bool loaded = EmbeddedDataManager.Load(trackData);
             ConfigManager.quickModGroup?.GameObject.SetActive(loaded);
+            hasPreloadedLyricGlyphs = false;
         }
+
+        //[HarmonyPatch(typeof(BurstFft), "Transform")]
+        //[HarmonyPrefix]
+        //internal static bool BurstFft_TransformPrefix()
+        //{
+        //    return false;
+        //}
+
+        //[HarmonyPatch(typeof(BackgroundLyricLineDisplay), "LateUpdate")]
+        //[HarmonyPrefix]
+        //internal static bool BackgroundLyricLineDisplay_LateUpdatePrefix()
+        //{
+        //    return false;
+        //}
     }
 }

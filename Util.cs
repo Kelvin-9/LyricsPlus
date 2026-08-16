@@ -34,7 +34,17 @@ namespace LyricPlus
 
         public static Vector5 WithV(this Vector5 vec, float v)
         {
-            return new Vector5(vec, v);
+            return new Vector5(vec.x, vec.y, vec.z, vec.w, v);
+        }
+
+        public static Vector4 WithW(this Vector4 vec, float w)
+        {
+            return new Vector4(vec.x, vec.y, vec.z, w);
+        }
+
+        public static Vector4 ToSerialiableVector4(this Vector4 vec)
+        {
+            return new Vector4(vec);
         }
 
         public static UnityEngine.Color LerpHSV(UnityEngine.Color a, UnityEngine.Color b, float t)
@@ -219,7 +229,7 @@ namespace LyricPlus
 
         public static implicit operator Vector3(Vector5 v)
         {
-            return new Vector4(v.x, v.y, v.z);
+            return new Vector3(v.x, v.y, v.z);
         }
 
         public static Vector5 operator +(Vector5 v1, Vector5 v2) 
@@ -230,6 +240,64 @@ namespace LyricPlus
         public override string ToString()
         {
             return $"({x},{y},{z},{w},{v})";
+        }
+    }
+
+    public struct Vector4
+    {
+        public float x;
+        public float y;
+        public float z;
+        public float w;
+
+        public Vector4()
+        {
+
+        }
+
+        public Vector4(Vector4 vec)
+        {
+            x = vec.x;
+            y = vec.y;
+            z = vec.z;
+            w = vec.w;
+        }
+
+        public Vector4(float x, float y, float z, float w)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+        }
+
+        public static Vector4 LerpUnclamped(Vector4 a, Vector4 b, float t)
+        {
+            float x = Mathf.LerpUnclamped(a.x, b.x, t);
+            float y = Mathf.LerpUnclamped(a.y, b.y, t);
+            float z = Mathf.LerpUnclamped(a.z, b.z, t);
+            float w = Mathf.LerpUnclamped(a.w, b.w, t);
+            return new Vector4(x, y, z, w);
+        }
+
+        public Vector4 Convert()
+        {
+            return new Vector4(x, y, z, w);
+        }
+
+        public static Vector4 operator +(Vector4 left, Vector4 right) 
+        {
+            return new Vector4(left.x + right.x, left.y + right.y, left.z + right.z, left.w + right.w);
+        }
+
+        public static implicit operator Vector3(Vector4 v)
+        {
+            return new Vector3(v.x, v.y, v.z);
+        }
+
+        public static implicit operator Vector4(Vector3 v)
+        {
+            return new Vector4(v.x, v.y, v.z, 0);
         }
     }
 }

@@ -10,6 +10,8 @@ namespace LyricPlus
     internal class LyricTriggers
     {
         internal static Dictionary<string, Color32> LUTKeys = [];
+        internal static Dictionary<string, Color32> LUTBaseKeys = [];
+        internal static HashSet<string> allTriggerKeys = [];
         internal static Dictionary<Color32, List<Trigger<Color>>> colorTriggers = [];
         internal static Dictionary<string, List<Trigger<float>>> setTriggers = [];
         internal static Dictionary<Color32, List<Trigger<Vector4>>> offsetTriggers = [];   // Offset uses Vector4 as W stores easing
@@ -19,8 +21,10 @@ namespace LyricPlus
         internal static void LoadTriggers(LyricTriggerEmbedData data)
         {
             ClearAll();
+            if (!EmbeddedDataManager.hasEmbeddedData) return;
 
             LUTKeys = data.colorKeys;
+            LUTBaseKeys = data.colorKeys;
             var colorTriggers = data.colorTriggers ?? [];
             var setTriggers = data.setTriggers ?? [];
             var offsetTriggers = data.offsetTriggers ?? [];
@@ -79,10 +83,12 @@ namespace LyricPlus
             )
         {
             ClearAll();
+            if (!EmbeddedDataManager.hasEmbeddedData) return;
 
             hasTriggers = colorTriggers.Count + setTriggers.Count + offsetTriggers.Count + rotateTriggers.Count > 0;
 
             LUTKeys = colorKeys;
+            LUTBaseKeys = colorKeys;
             LyricTriggers.colorTriggers  = colorTriggers;
             LyricTriggers.setTriggers    = setTriggers;
             LyricTriggers.offsetTriggers = offsetTriggers;
@@ -90,11 +96,6 @@ namespace LyricPlus
 
             RegisterEvents();
             LoadTriggersIntoManager(LUTKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers, LyricTriggers.rotateTriggers);
-            foreach (var pair in LUTKeys.ToList())
-            {
-                LUTKeys.Add("o" + pair.Key, pair.Value);
-                LUTKeys.Add("r" + pair.Key, pair.Value);
-            }
         }
 
         internal static Dictionary<Color32, List<Trigger<T>>> SortTriggers<T>(Dictionary<Color32, List<Trigger<T>>> dict, Func<Trigger<T>, Trigger<T>, Trigger<T>> RelativeResolver)
@@ -110,7 +111,7 @@ namespace LyricPlus
                 for (int j = 1; j < li.Count; j++)
                 {
                     if (RelativeResolver == null) break;
-                    if (!li[j].isRelative) continue;
+                    if (!li[j].IsRelative) continue;
 
                     li[j] = RelativeResolver(li[j], li[j - 1]);
                 }
@@ -136,15 +137,18 @@ namespace LyricPlus
 
         internal static void ClearAll()
         {
-            foreach (var pair in LUTKeys)
+            foreach (string key in LUTKeys.Keys)
             {
-                TriggerManager.ClearTriggers(pair.Key);
+                TriggerManager.ClearTriggers(key);
             }
+
             LUTKeys.Clear();
+            LUTBaseKeys.Clear();
             colorTriggers.Clear();
             setTriggers.Clear();
             offsetTriggers.Clear();
             rotateTriggers.Clear();
+            allTriggerKeys.Clear();
         }
 
         private static void RegisterEvents()
@@ -153,6 +157,7 @@ namespace LyricPlus
 
             foreach (var pair in LUTKeys)
             {
+                if (colorToKey.ContainsKey(pair.Value)) continue;
                 colorToKey.Add(pair.Value, pair.Key);
             }
 
@@ -198,7 +203,7 @@ namespace LyricPlus
                     Color32 mapFrom = LUTKeys[triggerKey];
                     Vector3 from = new(trigger.StartValue.x, trigger.StartValue.y, trigger.StartValue.z);
                     Vector3 to = new(trigger.EndValue.x, trigger.EndValue.y, trigger.EndValue.z);
-                    if (trigger.isRelative)
+                    if (trigger.IsRelative)
                         to += from;
 
                     if (trigger.Duration == 0f)
@@ -254,14 +259,14 @@ namespace LyricPlus
             });
 
             offsetTriggers = SortTriggers(offsetTriggers, (t, prev) => {
-                t.StartValue = prev.EndValue;
-                t.EndValue = (t.EndValue + t.StartValue).WithW(t.EndValue.w);
+                t.StartValue = prev.EndValue.WithW(t.StartValue.w);
+                t.EndValue = t.EndValue + t.StartValue;
                 return t;
             });
 
             rotateTriggers = SortTriggers(rotateTriggers, (t, prev) => {
-                t.StartValue = prev.EndValue.WithV(prev.StartValue.v); // Also set pivot as same
-                t.EndValue = new Vector5(t.EndValue, t.EndValue.w + prev.EndValue.w, t.EndValue.v);
+                t.StartValue = prev.EndValue.WithV(prev.StartValue.v); // Set pivot to prev trigger's
+                t.EndValue = new Vector5(t.EndValue, t.EndValue.w + prev.EndValue.w, t.EndValue.v);  // Increase angle
                 return t;
             });
 
@@ -275,25 +280,36 @@ namespace LyricPlus
                 if (colorTriggers.ContainsKey(colorKey) && colorTriggers[colorKey].Count > 0)
                 {
                     //Debug.Log($"LOADING EVENTS {triggerKey} {colorTriggers[colorKey].Count}");
+                    allTriggerKeys.Add(triggerKey);
                     TriggerManager.LoadTriggers(triggerKey, colorTriggers[colorKey].ToArray());
                 }
 
                 if (offsetTriggers.ContainsKey(colorKey) && offsetTriggers[colorKey].Count > 0)
                 {
                     //Debug.Log($"LOADING EVENTS {"o" + triggerKey} {offsetTriggers[colorKey].Count}");
-                    TriggerManager.LoadTriggers("o" + triggerKey, offsetTriggers[colorKey].ToArray());
+                    string key = "o" + triggerKey;
+                    allTriggerKeys.Add(key);
+                    TriggerManager.LoadTriggers(key, offsetTriggers[colorKey].ToArray());
                 }
 
                 if (rotateTriggers.ContainsKey(colorKey) && rotateTriggers[colorKey].Count > 0)
                 {
                     //Debug.Log($"LOADING EVENTS {"r" + triggerKey} {rotateTriggers[colorKey].Count}");
-                    TriggerManager.LoadTriggers("r" + triggerKey, rotateTriggers[colorKey].ToArray());
+                    string key = "r" + triggerKey;
+                    allTriggerKeys.Add(key);
+                    TriggerManager.LoadTriggers(key, rotateTriggers[colorKey].ToArray());
                 }
+            }
 
+            foreach (var item in keys.ToList())
+            {
+                LUTKeys["o" + item.Key] = item.Value;
+                LUTKeys["r" + item.Key] = item.Value;
             }
 
             foreach (string var in setTriggers.Keys)
             {
+                allTriggerKeys.Add(var);
                 TriggerManager.LoadTriggers(var, setTriggers[var].ToArray());
             }
         }
@@ -327,11 +343,11 @@ namespace LyricPlus
         public float Duration { get; set; }
         public T StartValue { get; set; }
         public T EndValue { get; set; }
-        public bool isRelative { get; set; }
+        public bool IsRelative { get; set; }
 
         public Trigger() 
         {
-            isRelative = false;
+            IsRelative = false;
         }
 
         public Trigger(float Time, T StartValue)
@@ -340,7 +356,7 @@ namespace LyricPlus
             Duration = 0;
             this.StartValue = StartValue;
             EndValue = StartValue;
-            isRelative = false;
+            IsRelative = false;
         }
 
         public Trigger(float Time, float Duration, T StartValue, T EndValue, bool isRelative = false)
@@ -349,7 +365,7 @@ namespace LyricPlus
             this.Duration = Duration;
             this.StartValue = StartValue;
             this.EndValue = EndValue;
-            this.isRelative = isRelative;
+            this.IsRelative = isRelative;
         }
 
         public override string ToString()

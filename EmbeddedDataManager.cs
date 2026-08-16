@@ -119,30 +119,36 @@ namespace LyricPlus
         #       - Smoothly curves "variable" at [time] from [startValue] to [endValue] over [duration]
         #       - Variable names: FADEIN, FADEOUT, UNSPOKENALPHA, SLANT, TEXTBOXSIZE
         #       Example:
-        #           SET FADEIN 10.2 1.0 0 5                                        // Sets FADEIN to 1.0 at time 10.2 then it smoothly falls back to 0 over 5 seconds
+        #           SET FADEIN 10.2 1.0 0 5                                        // Sets FADEIN to 1.0 at time 10.2 then it linearly falls back to 0 over 5 seconds
         #
         #   OFFSET "LUTentry" [time] (startOffset) <(endOffset) [duration]> <"easing">
         #       - Offsets the position of all text with the given "LUTentry" from [startOffset] to [endOffset] over duration
         #       - Give the offsets in the form of x,y,z or (x,y,z)
         #       - Optional "easing" parameter can be set to any easing found in https://easings.net/
         #       Example:
-        #           OFFSET color1 30.5 (0,0,0) (0,4,-10) 2 ElasticInOut            // All text with same color tag as color1 gets moved from (0,0,0) to (0,4,-10) over 2 seconds while using the ElasticInOut animation curve
+        #           OFFSET color1 30.5 (0,0,0) (0,4,-10) 2 InOutElastic            // All text with same color tag as color1 gets moved from (0,0,0) to (0,4,-10) over 2 seconds while using the ElasticInOut animation curve
+        #
+        #   RELATIVEOFFSET "LUTentry" [time] (offset) <[duration]> <"easing">
+        #       - Increases the offset based on previous OFFSET/RELATIVEOFFSET trigger on this "LUTentry"
+        #       - For example, offsetting by (0,1,0) then doing RELATIVEOFFSET by (0,1,0) will make the text go to (0,2,0)
+        #       Example:
+        #           OFFSET color1 30.5 (0,0,0)
+        #           RELATIVEOFFSET color1 31 (0,1,0)
         #
         #   ROTATE "LUTentry" [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <"easing">
         #       - Rotates around (axis) and character index [pivotIndex] by [degrees], moving the axis towards (endAxis) and changing the degrees to [endDegrees] over [duration]
-        #       - Pivot index refers to the index of the character the rotation is based on, starting at 0 for the first character in the phrase.
-        #       - For example, "@<color=color1>helicopter" with trigger ROTATE color1 10 (0,0,1) 10 2 would rotate around index 2 of the phrase "@helicopter" which would be the 3rd character "l", rotated around the z axis by 10 degrees.
+        #       - Pivot index refers to the index of the character within the phrase, starting at 0 for the first character. (Use -1 to rotate in place)
+        #       - For example, "@<color=color1>helicopter" with trigger ROTATE color1 10 (0,0,1) 10 2 would pivot around index 2 (the 3rd character) of the phrase "helicopter" which would be the letter "l", rotated around the z axis by 10 degrees.
         #       Example: 
-        #           ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 EaseInOutQuint
-        #           (this one's a doozy sorry)
+        #           ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 InOutQuint
         #   
-        #   RELATIVEROTATE "LUTentry" [time] (endAxis) [endDegrees] [duration] <"easing">
-        #       - Rotates around the previous trigger's end axis and pivot, increasing the angle by [endDegrees] and moving axis towards (endAxis) over [duration]
+        #   RELATIVEROTATE "LUTentry" [time] (endAxis) [degreesIncrease] <[duration]> <"easing">
+        #       - Rotates around the previous trigger's end axis and pivot, increasing the angle by [degreesIncrease] and moving axis towards (endAxis) over [duration]
         #       - Makes writing consecutive rotations easier and compatible with REPEAT loops
         #       Example:
-        #           ROTATE color1 9 (0,0,1) 0
-        #           RELATIVEROTATE color1 10.2 (0,0,1) 20 2 outsine
-        #           RELATIVEROTATE color1 11.2 (0,0,1) 20 2 outsine
+        #           ROTATE color1 9 (0,0,1) 0                               // Set up axis and pivot
+        #           RELATIVEROTATE color1 10.2 (0,0,1) 20 2 OutSine         // Rotate around previous axis (0,0,1) and pivot index 0 by 20 degrees
+        #           RELATIVEROTATE color1 11.2 (0,0,1) 20 2 OutSine         // Do it again, it is now 40 degrees around z axis
         #
         #   <> = optional, [] = number, "" = name, "#x" = color, () = vector
         #   All variables are separated by space so do NOT add spaces between vector components like (0, 0, 0). Write it like 0,0,0 or (0,0,0) instead
@@ -170,6 +176,7 @@ namespace LyricPlus
         #   REPEAT [numRepeats] interval [timeInterva]
         #       (commands go here)
         #   ENDREPEAT
+        #       - You can use RELATIVE triggers to repeatedly move/rotate text with this
         #
         #   FUNCTION [functionName]
         #       (commands go here)
@@ -197,14 +204,14 @@ namespace LyricPlus
                 // Create file
                 try
                 {
-                    using (StreamWriter writer = new StreamWriter(path))
+                    using (StreamWriter writer = new(path))
                     {
                         writer.Write(LYRIC_TRIGGER_TEMPLATE);
                     }
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError($"Failed to create .lyr file: {e.Message}");
+                    Debug.LogError($"Failed to create path: {e.Message}");
                     return;
                 }
             }
@@ -222,7 +229,7 @@ namespace LyricPlus
             }
             catch (Exception e) 
             {
-                Debug.LogError($"Failed to open .lyr file: {e.Message}");
+                Debug.LogError($"Failed to open {path}: {e.Message}");
                 return;
             }
         }
@@ -265,6 +272,7 @@ namespace LyricPlus
                 return;
             }
 
+            Debug.Log($"<{file.FileNameNoExtension}> Loaded embedded lyric+ config");
             shaderData = lyricConfig.GetParameterDictionary();
 
             SyncAllQuickmodEmbedUI();
@@ -367,7 +375,7 @@ namespace LyricPlus
 
             if (matMap.TryGetValue(font, out var mat)) return mat;
 
-            mat = new Material(Plugin.textShader);
+            mat = new(Plugin.textShader);
             mat.CopyPropertiesFromMaterial(font.material);
             matMap[font] = mat;
 
@@ -451,8 +459,8 @@ namespace LyricPlus
         public Color defaultColor = new(1, 1, 1, 1); // All text with #FFFFFF not controlled by a LUT is replaced with defaultColor
         
         // LUT
-        private Dictionary<Color32, Color32> lutColor  = [];
-        private Dictionary<Color32, Vector3> lutOffset = [];
+        private Dictionary<Color32, Color32> lutColor    = [];
+        private Dictionary<Color32, Vector3> lutOffset   = [];
         private Dictionary<Color32, Vector5> lutRotation = [];
 
         public List<ShaderParameter> parameters = [];

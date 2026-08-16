@@ -22,6 +22,9 @@
     <Reference Include="DOTweenPro">
       <HintPath>..\..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\DOTweenPro.dll</HintPath>
     </Reference>
+    <Reference Include="Spin.Game.TrackPlaybackSystem">
+      <HintPath>..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\Spin.Game.TrackPlaybackSystem.dll</HintPath>
+    </Reference>
     <Reference Include="SpinCore">
       <HintPath>C:\Users\kelvi\AppData\Roaming\SRXD Mod Manager\data\BepInEx\plugins\e175438534a4f36f149d7abfd21ee39f69752a3f8159ae999fe869aaa5318579\SpinCore.dll</HintPath>
     </Reference>

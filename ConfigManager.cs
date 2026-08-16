@@ -574,7 +574,7 @@ namespace LyricPlus
                         EmbeddedDataManager.Reload(); // Reloads triggers just in case trigger file was just created / changed
                         EmbeddedDataManager.SaveTriggerDataForTrack(
                             EmbeddedDataManager.currentFile, 
-                            new LyricTriggerEmbedData(LyricTriggers.LUTKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers, LyricTriggers.rotateTriggers)
+                            new LyricTriggerEmbedData(LyricTriggers.LUTBaseKeys, LyricTriggers.colorTriggers, LyricTriggers.setTriggers, LyricTriggers.offsetTriggers, LyricTriggers.rotateTriggers)
                         );
                     }
                 );

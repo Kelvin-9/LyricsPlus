@@ -62,7 +62,7 @@ namespace LyricPlus
             Debug.Log("Shaders initialized");
         }
 
-        private static FontAssetSystem? _fontAssetSystem;
+        private readonly static string[] fallbackFontNames = ["NotoSansSymbols", "NotoSansSymbols2", "NotoColorEmoji"];
         public static void InitFallbackFont()
         {
             Stream fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricPlus.Fonts.fallbackFont");
@@ -73,23 +73,28 @@ namespace LyricPlus
                 return;
             }
 
-            var font1 = bundle.LoadAsset<TMP_FontAsset>("NotoSansSymbols");
-            var font2 = bundle.LoadAsset<TMP_FontAsset>("NotoSansSymbols2");
-            if (font1 == null || font2 == null)
-            {
-                Debug.LogError("FONT NOT FOUND!!!");
-                return;
-            }
 
-            fallbackFonts.Add(font1);
-            fallbackFonts.Add(font2);
+            for (int i = 0; i < fallbackFontNames.Length; i++)
+            {
+                var font = bundle.LoadAsset<TMP_FontAsset>(fallbackFontNames[i]);
+                if (font == null)
+                {
+                    Debug.LogError($"Font {fallbackFontNames[i]} not found!");
+                    continue;
+                }
+
+                fallbackFonts.Add(font);
+            }
 
             Debug.Log("Fallback font fetched");
         }
 
         static Dictionary<TMP_FontAsset, Material> defaultMatMap = [];
+        internal static TMP_FontAsset mainLyricFont;
         public static Material? GetTextMaterial(TMP_FontAsset font)
         {
+            mainLyricFont = font;
+
             // Prefer chart specific mat
             Material? chartMat = EmbeddedDataManager.GetChartLyricMaterial(font);
             if (chartMat != null)
