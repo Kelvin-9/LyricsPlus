@@ -135,14 +135,8 @@ namespace LyricPlus
         #           OFFSET color1 30.5 (0,0,0)
         #           RELATIVEOFFSET color1 31 (0,1,0)
         #
-        #   SCALE [LUTindex] [time] (startScale) [pivotIndex] <(endScale) [duration]> <"easing">
-        #       - Scales [LUTindex] around [pivotIndex] by (startScale)
-        #       Example:
-        #           SCALE color1 10.0 (1,1,1) 0 (1,2,1) 2.0 InOutQuint
-        #
         #   ROTATE "LUTentry" [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <"easing">
         #       - Rotates around (axis) and character index [pivotIndex] by [degrees], moving the axis towards (endAxis) and changing the degrees to [endDegrees] over [duration]
-        #       - Pivot index refers to the index of the character within the phrase, starting at 0 for the first character. (Use -1 to rotate in place)
         #       - For example, "@<color=color1>helicopter" with trigger ROTATE color1 10 (0,0,1) 10 2 would pivot around index 2 (the 3rd character) of the phrase "helicopter" which would be the letter "l", rotated around the z axis by 10 degrees.
         #       Example: 
         #           ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 InOutQuint
@@ -155,8 +149,18 @@ namespace LyricPlus
         #           RELATIVEROTATE color1 10.2 (0,0,1) 20 2 OutSine         // Rotate around previous axis (0,0,1) and pivot index 0 by 20 degrees
         #           RELATIVEROTATE color1 11.2 (0,0,1) 20 2 OutSine         // Do it again, it is now 40 degrees around z axis
         #
+        #   SCALE [LUTindex] [time] (startScale) [pivotIndex] <(endScale) [duration]> <"easing">
+        #       - Scales [LUTindex] around [pivotIndex] by (startScale)
+        #       Example:
+        #           SCALE color1 10.0 (1,1,1) 0 (1,2,1) 2.0 InOutQuint
+        #
+        #
         #   <> = optional, [] = number, "" = name, "#x" = color, () = vector
         #   All variables are separated by space so do NOT add spaces between vector components like (0, 0, 0). Write it like 0,0,0 or (0,0,0) instead
+        #   Pivot index Refers to the index of the character that the effect is pivoted on. 
+        #       In the phrase "@my lyrics so fine" if I want to rotate around the character "l" in lyrics, I would count (including spaces) the index of the character starting at 1 for 'm', so 'l' would be 4.
+        #       To use the character itself as pivot, use index 0. 
+        #       Negative numbers are the same as positive except the effect is multiplied by the character's index distance to the pivot. For example, "ROTATE color1 10 (0,0,1) 20 -1" for "@x<color=color1>Lyrics" would rotate 'L' around 'x' by 20 degrees, 'y' around 'x' by 40 degrees, etc.
         ///  ------------------------------------
 
 
@@ -356,39 +360,6 @@ namespace LyricPlus
 
             lyricConfig.SetVariable(key, value);
         }
-
-        //public static Vector3 GetOffset(Color32 key)
-        //{
-        //    if (lyricConfig == null)
-        //    {
-        //        Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
-        //        return Vector3.zero;
-        //    }
-
-        //    return lyricConfig.EvaluateLUTOffset(key);
-        //}
-
-        //public static Vector4 GetScale(Color32 key)
-        //{
-        //    if (lyricConfig == null)
-        //    {
-        //        Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
-        //        return new Vector4(1, 1, 1, -1);
-        //    }
-
-        //    return lyricConfig.EvaluateLUTScale(key);
-        //}
-
-        //public static Vector5 GetRotation(Color32 key)
-        //{
-        //    if (lyricConfig == null)
-        //    {
-        //        Debug.LogError("Tried to modify LUT with trigger but lyricConfig is null!");
-        //        return new Vector5();
-        //    }
-
-        //    return lyricConfig.EvaluateLUTRotation(key);
-        //}
 
 
         // GET CHART LYRIC MATERIAL
@@ -621,7 +592,7 @@ namespace LyricPlus
     {
         public Color32 color = new(255, 255, 255, 255);
         public Vector3 offset = new(0,0,0);
-        public Vector4 scale = new(1,1,1,-1);
+        public Vector4 scale = new(1,1,1,0);
         public Vector5 rotation = new(0,0,0,0,0);
 
         public LUTInfo() { }

@@ -62,12 +62,6 @@ SET FADEIN 10.2 1.0 0 5<br><br>
 OFFSET color1 30.5 (0,0,0) (0,4,-10) 2 InOutElastic<br><br>
 </i>
 
-<b>SCALE [LUTindex] [time] (startScale) [pivotIndex] <(endScale) [duration]> <"easing"></b>
-- Scales [LUTindex] around [pivotIndex] by (startScale)
-<i>
-SCALE color1 10.0 (1,1,1) 0 (1,2,1) 2.0 InOutQuint<br><br>
-</i>
-
 <b>RELATIVEOFFSET "LUTentry" [time] (offset) <[duration]> <"easing"></b>
 - Increases the offset based on previous OFFSET/RELATIVEOFFSET trigger on this "LUTentry"
 - For example, offsetting by (0,1,0) then doing RELATIVEOFFSET by (0,1,0) will make the text go to (0,2,0)
@@ -76,10 +70,16 @@ OFFSET color1 30.5 (0,0,0)<br>
 RELATIVEOFFSET color1 31 (0,1,0)<br><br>
 </i>
 
+<b>SCALE [LUTindex] [time] (startScale) [pivotIndex] <(endScale) [duration]> <"easing"></b>
+- Scales [LUTindex] around [pivotIndex] by (startScale)
+<i>
+SCALE color1 10.0 (1,1,1) 0 (1,2,1) 2.0 InOutQuint<br><br>
+</i>
+
 <b>ROTATE "LUTentry" [time] (axis) [degrees] [pivotIndex] <(endAxis) [endDegrees] [duration]> <"easing"></b>
 - Rotates around (axis) and character index [pivotIndex] by [degrees], moving the axis towards (endAxis) and changing the degrees to [endDegrees] over [duration]
-- Pivot index refers to the index of the character within the phrase, starting at 0 for the first character. (Use -1 to rotate in place)
-- For example, "@<color=color1>helicopter" with trigger ROTATE color1 10 (0,0,1) 10 2 would pivot around index 2 (the 3rd character) of the phrase "helicopter" which would be the letter "l", rotated around the z axis by 10 degrees.
+- Pivot index refers to the index of the character within the phrase, starting at 1 for the 1st character. (Use 0 to rotate in place)
+- For example, "@heli<color=color1>copter" with trigger "ROTATE color1 10 (0,0,1) 10 2" would rotate "copter" by 10 degrees around the 2nd character of "helicopter" which would be the letter "e".
 <i>
 ROTATE color1 10.2 (0,0,1) 0 0 (0,0,1) 20 2 InOutQuint<br><br>
 </i>

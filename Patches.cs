@@ -223,13 +223,18 @@ namespace LyricPlus
                     Vector5 rotInfo = data.lut.rotation;
                     Vector3 rotAxisDir = new(rotInfo.x, rotInfo.y, rotInfo.z);
 
-                    int rotPivotIndex = rotInfo.v < 0 ? i : Mathf.Clamp((int)rotInfo.v, 0, charCount - 1);
+                    float indexDifferenceAngleMult = 0;
+                    if (rotInfo.v < 0)
+                    {
+                        indexDifferenceAngleMult = -rotInfo.v;
+                    }
+                    int rotPivotIndex = Mathf.Clamp(rotInfo.v < 0 ? -(int)rotInfo.v : rotInfo.v == 0 ? i : (int)rotInfo.v - 1, 0, charCount - 1);
                     ref CharacterData rotPivotData = ref charData[rotPivotIndex];
                     ref TMP_CharacterInfo rotPivotChar = ref textInfo.characterInfo[rotPivotIndex];
 
                     if (!rotPivotData.pivotCalculated)
                     {
-                        rotPivotData.pivot = (
+                        rotPivotData.pivot = ( 
                             rotPivotChar.vertex_BL.position +
                             rotPivotChar.vertex_BR.position +
                             rotPivotChar.vertex_TL.position +
@@ -244,14 +249,20 @@ namespace LyricPlus
                         rotPivotData.right * rotAxisDir.x +
                         rotPivotData.up * rotAxisDir.y +
                         rotPivotData.forward * rotAxisDir.z;
-
-                    Quaternion rot = Quaternion.AngleAxis(rotInfo.w, axis.normalized);
+                    float rotMult = 1 + Mathf.Abs(i - rotPivotIndex) * indexDifferenceAngleMult;
+                    Quaternion rot = Quaternion.AngleAxis(rotInfo.w * rotMult, axis.normalized);
 
                     // LUT for scale
                     Vector4 scaleInfo = data.lut.scale;
-                    Vector3 scale = new(scaleInfo.x, scaleInfo.y, scaleInfo.z);
+                    int scalePivotIndex = Mathf.Clamp(scaleInfo.w < 0 ? -(int)scaleInfo.w : scaleInfo.w == 0 ? i : (int)scaleInfo.w - 1, 0, charCount - 1);
+                    float indexDifferenceScaleMult = 0;
+                    if (scaleInfo.w < 0)
+                    {
+                        indexDifferenceScaleMult = -scaleInfo.w;
+                    }
+                    float scaleMult = 1 + Mathf.Abs(i - scalePivotIndex) * indexDifferenceScaleMult;
+                    Vector3 scale = new(scaleInfo.x * scaleMult, scaleInfo.y * scaleMult, scaleInfo.z * scaleMult);
 
-                    int scalePivotIndex = scaleInfo.w < 0 ? i : Mathf.Clamp((int)scaleInfo.w, 0, charCount - 1);
                     ref CharacterData scalePivotData = ref charData[scalePivotIndex];
                     ref TMP_CharacterInfo scalePivotChar = ref textInfo.characterInfo[scalePivotIndex];
 
