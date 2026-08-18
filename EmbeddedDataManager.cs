@@ -377,11 +377,6 @@ namespace LyricPlus
             mat.CopyPropertiesFromMaterial(font.material);
             matMap[font] = mat;
 
-            foreach (var fallback in Plugin.fallbackFonts)
-            {
-                Plugin.AddFallbackFont(font, fallback);
-            }
-
             Util.ApplyShaderParameter(mat, shaderData);
 
             return mat;

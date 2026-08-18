@@ -1,10 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices.ComTypes;
 using BepInEx;
 using BepInEx.Configuration;
-using Newtonsoft.Json;
 using SpinCore.Translation;
 using SpinCore.UI;
 using UnityEngine;
@@ -562,6 +560,14 @@ namespace LyricPlus
                     "LyricPlus_ModSettings_EmbedTriggerFile",
                     () =>
                     {
+                        if (EmbeddedDataManager.currentFile == null) return;    // This should never trigger but just in case the button isn't hidden
+
+                        if (!LyricTriggers.hasTriggers)
+                        {
+                            Debug.LogError($"No triggers to integrate. Make sure your .lyr file is named {EmbeddedDataManager.currentFile?.FileNameNoExtension}.lyr");
+                            return;
+                        }
+
                         if (!EmbeddedDataManager.HasEmbeddedData)
                         {
                             Debug.Log("No embedded data, embedding default embed settings first");

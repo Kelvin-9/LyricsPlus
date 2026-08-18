@@ -604,7 +604,7 @@ namespace LyricPlus
             rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(
                 time.Value,
                 duration,
-                new Vector5(EndAxis.Value, 0, -1),                                        // RELATIVEROTATE triggers default to rotating on itself (with -1 pivot index)
+                new Vector5(EndAxis.Value, 0, 0),                                         // RELATIVEROTATE triggers default to rotating on itself (with 0 pivot index)
                 new Vector5(EndAxis.Value, endDegrees.Value, ease),                       // End value packs ease
                 isRelative: true
             ));

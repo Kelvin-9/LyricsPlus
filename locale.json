@@ -51,16 +51,16 @@
     "en": "Textbox Size"
   },
   "LyricPlus_QuickSettings_Header": {
-    "en": "Embed Lyric Settings"
+    "en": "Embedded Lyric Parameters"
   },
   "LyricPlus_ModSettings_Apply": {
-    "en": "Embed Parameters"
+    "en": "Integrate Parameters"
   },
   "LyricPlus_ModSettings_CreateTriggerFile": {
     "en": "Edit Triggers"
   },
   "LyricPlus_ModSettings_EmbedTriggerFile": {
-    "en": "Embed Triggers"
+    "en": "Integrate Triggers"
   },
   "LyricPlus_ModSettings_DebugApply": {
     "en": "Debug Apply"

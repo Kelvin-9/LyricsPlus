@@ -1,6 +1,10 @@
 ﻿using HarmonyLib;
+using SpinCore.Triggers;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -59,7 +63,6 @@ namespace LyricPlus
             font.HasCharacters(str, out List<char> missingChars);
             if (missingChars == null || missingChars.Count == 0)
             {
-                Debug.Log("No missing characters");
                 return;
             }
 
@@ -223,11 +226,6 @@ namespace LyricPlus
                     Vector5 rotInfo = data.lut.rotation;
                     Vector3 rotAxisDir = new(rotInfo.x, rotInfo.y, rotInfo.z);
 
-                    float indexDifferenceAngleMult = 0;
-                    if (rotInfo.v < 0)
-                    {
-                        indexDifferenceAngleMult = -rotInfo.v;
-                    }
                     int rotPivotIndex = Mathf.Clamp(rotInfo.v < 0 ? -(int)rotInfo.v : rotInfo.v == 0 ? i : (int)rotInfo.v - 1, 0, charCount - 1);
                     ref CharacterData rotPivotData = ref charData[rotPivotIndex];
                     ref TMP_CharacterInfo rotPivotChar = ref textInfo.characterInfo[rotPivotIndex];
@@ -249,18 +247,14 @@ namespace LyricPlus
                         rotPivotData.right * rotAxisDir.x +
                         rotPivotData.up * rotAxisDir.y +
                         rotPivotData.forward * rotAxisDir.z;
-                    float rotMult = 1 + Mathf.Abs(i - rotPivotIndex) * indexDifferenceAngleMult;
+                    float rotMult = rotInfo.v >= 0 ? 1 : 1 + Mathf.Abs(i - rotPivotIndex);
                     Quaternion rot = Quaternion.AngleAxis(rotInfo.w * rotMult, axis.normalized);
 
                     // LUT for scale
                     Vector4 scaleInfo = data.lut.scale;
                     int scalePivotIndex = Mathf.Clamp(scaleInfo.w < 0 ? -(int)scaleInfo.w : scaleInfo.w == 0 ? i : (int)scaleInfo.w - 1, 0, charCount - 1);
-                    float indexDifferenceScaleMult = 0;
-                    if (scaleInfo.w < 0)
-                    {
-                        indexDifferenceScaleMult = -scaleInfo.w;
-                    }
-                    float scaleMult = 1 + Mathf.Abs(i - scalePivotIndex) * indexDifferenceScaleMult;
+
+                    float scaleMult = scaleInfo.w >= 0 ? 1 : 1 + Mathf.Abs(i - scalePivotIndex);
                     Vector3 scale = new(scaleInfo.x * scaleMult, scaleInfo.y * scaleMult, scaleInfo.z * scaleMult);
 
                     ref CharacterData scalePivotData = ref charData[scalePivotIndex];
@@ -283,10 +277,10 @@ namespace LyricPlus
                     Vector3 p1 = textInfo.meshInfo[matInd].vertices[vert + 1];
                     Vector3 p2 = textInfo.meshInfo[matInd].vertices[vert + 2];
                     Vector3 p3 = textInfo.meshInfo[matInd].vertices[vert + 3];
-                    textInfo.meshInfo[matInd].vertices[vert + 0] = (p0 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
-                    textInfo.meshInfo[matInd].vertices[vert + 1] = (p1 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
-                    textInfo.meshInfo[matInd].vertices[vert + 2] = (p2 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
-                    textInfo.meshInfo[matInd].vertices[vert + 3] = (p3 + data.offset).RotateAroundPivot(rotPivot, rot).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale);
+                    textInfo.meshInfo[matInd].vertices[vert + 0] = (p0 + data.offset).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale).RotateAroundPivot(rotPivot, rot);
+                    textInfo.meshInfo[matInd].vertices[vert + 1] = (p1 + data.offset).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale).RotateAroundPivot(rotPivot, rot);
+                    textInfo.meshInfo[matInd].vertices[vert + 2] = (p2 + data.offset).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale).RotateAroundPivot(rotPivot, rot);
+                    textInfo.meshInfo[matInd].vertices[vert + 3] = (p3 + data.offset).ScaleAroundPivot(scalePivot, scalePivotData.right, scalePivotData.up, scalePivotData.forward, scale).RotateAroundPivot(rotPivot, rot);
                 }
 
                 // Grabbing that tint / alpha data modified by Prerender
@@ -363,7 +357,7 @@ namespace LyricPlus
         // Truncate timeline text so that big text doesn't cover the entire editor
         [HarmonyPatch(typeof(DetailedTimelineTextBar), "AddText")]
         [HarmonyPostfix]
-        static void DetailedTimelineTextBar_AddTextPostfix(DetailedTimelineTextBar __instance, ref List<DetailedTimelineText> ___usedText)
+        static void DetailedTimelineTextBar_AddTextPostfix(ref List<DetailedTimelineText> ___usedText)
         {
             if (___usedText == null || ___usedText.Count <= 0) return;
 
@@ -378,6 +372,35 @@ namespace LyricPlus
             var rect = lastTextElement.RectTransform;
             rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 200f);
             rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 80f);
+        }
+
+        // Patch spincore to allow unregistering events because the store keys are not the same for every chart
+        internal static Dictionary<string, bool> registeredEvents = [];         // Maps fullkey to whether they should be cleared from the store
+        [HarmonyPatch(typeof(TriggerManager), "InternalRegisterTriggerEvent")]
+        [HarmonyPrefix]
+        static void TriggerManager_InternalRegisterTriggerEventPrefix(ref string fullKey, object ___TriggerStores)
+        {
+            if (___TriggerStores is not IDictionary triggerStores) return;
+
+            foreach (string key in registeredEvents.Keys.ToList())
+            {
+                if (!registeredEvents[key] || !triggerStores.Contains(key)) continue;
+                triggerStores.Remove(key);
+                registeredEvents.Remove(key);
+            }
+
+            if (fullKey.StartsWith(Assembly.GetAssembly(typeof(Plugin)).GetName().Name))
+            {
+                registeredEvents.Add(fullKey, false);
+            }
+        }
+
+        internal static void ClearTriggerStores()
+        {
+            foreach (string key in registeredEvents.Keys.ToList())
+            {
+                registeredEvents[key] = true;
+            }
         }
     }
 }

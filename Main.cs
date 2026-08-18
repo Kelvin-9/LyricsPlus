@@ -29,7 +29,7 @@ namespace LyricPlus
             Debug.Init(modGUID);
 
             InitShaders();
-            InitFallbackFont();
+            InitFallbackFonts();
             ConfigManager.InitConfig();
 
             harmony.PatchAll(typeof(Patches));
@@ -63,7 +63,7 @@ namespace LyricPlus
         }
 
         private readonly static string[] fallbackFontNames = ["NotoSansSymbols", "NotoSansSymbols2", "NotoColorEmoji"];
-        public static void InitFallbackFont()
+        public static void InitFallbackFonts()
         {
             Stream fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricPlus.Fonts.fallbackFont");
             AssetBundle bundle = AssetBundle.LoadFromStream(fontStream);
@@ -72,7 +72,6 @@ namespace LyricPlus
                 Debug.LogError("BUNDLE NOT FOUND!!!");
                 return;
             }
-
 
             for (int i = 0; i < fallbackFontNames.Length; i++)
             {
@@ -84,9 +83,10 @@ namespace LyricPlus
                 }
 
                 fallbackFonts.Add(font);
+                TMP_Settings.fallbackFontAssets.Add(font);
             }
 
-            Debug.Log("Fallback font fetched");
+            Debug.Log("Fallback font added");
         }
 
         static Dictionary<TMP_FontAsset, Material> defaultMatMap = [];
@@ -109,38 +109,9 @@ namespace LyricPlus
             mat.CopyPropertiesFromMaterial(font.material);
             defaultMatMap[font] = mat;
 
-            foreach(var fallback in fallbackFonts)
-            {
-                AddFallbackFont(font, fallback);
-            }
-
             ApplyDefaultShaderParameters();
 
             return mat;
-        }
-
-        public static void AddFallbackFont(TMP_FontAsset font, TMP_FontAsset fallback)
-        {
-            if (font == null)
-            {
-                Debug.LogError($"Font {font} is null!");
-                return;
-            }
-
-            if (fallback == null)
-            {
-                Debug.LogError($"Fallback font {fallback} is null!");
-                return;
-            }
-
-            if (font.fallbackFontAssetTable.Contains(fallback))
-            {
-                return;
-            }
-
-            Debug.Log($"Fallback {fallback.name} added to {font}");
-            font.fallbackFontAssetTable.Add(fallback);
-            TMPro_EventManager.ON_FONT_PROPERTY_CHANGED(true, font);
         }
 
         public static void ApplyDefaultShaderParameters()
