@@ -8,7 +8,7 @@ using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Diagnostics;
 
-namespace LyricPlus
+namespace LyricsPlus
 {
     internal class EmbeddedDataManager
     {
@@ -194,6 +194,9 @@ namespace LyricPlus
         #   CALL [functionName] [time]
         #       - All commands in the function will have their time value increased by [time]
         #       - Note that infinitly recursive function calls will be ignored, i.e. if FUNCTION A has CALL B [time] and FUNCTION B has CALL A [time], the last CALL A will not execute
+        #
+        #   RESET "LUTentry" [time]
+        #       - Sets color, offset, rotation and scale to default values. These are #FFFFFF, (0,0,0), default rotation, and (1,1,1) respectively.
         #
         ///  ------------------------------------
 

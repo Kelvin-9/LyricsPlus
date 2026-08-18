@@ -9,15 +9,14 @@ using System.Reflection;
 using TMPro;
 using UnityEngine;
 
-namespace LyricPlus
+namespace LyricsPlus
 {
-
     [BepInPlugin(modGUID, modName, modVersion)]
     [BepInDependency(SpinCorePlugin.Guid, SpinCorePlugin.Version)]
     public class Plugin : BaseUnityPlugin
     {
-        const string modGUID = "LyricPlus";
-        private const string modName = "LyricPlus";
+        const string modGUID = "LyricsPlus";
+        private const string modName = "LyricsPlus";
         private const string modVersion = "1.0.0";
 
         private readonly Harmony harmony = new(modGUID);
@@ -34,7 +33,7 @@ namespace LyricPlus
 
             harmony.PatchAll(typeof(Patches));
 
-            Debug.Log("LyricPlus Loaded!");
+            Debug.Log("LyricsPlus Loaded!");
         }
 
 
@@ -45,7 +44,7 @@ namespace LyricPlus
 
         public static void InitShaders()
         {
-            Stream shaderStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricPlus.Shaders.textshader");
+            Stream shaderStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricsPlus.Shaders.textshader");
             AssetBundle bundle = AssetBundle.LoadFromStream(shaderStream);
             if (bundle == null)
             {
@@ -65,7 +64,7 @@ namespace LyricPlus
         private readonly static string[] fallbackFontNames = ["NotoSansSymbols", "NotoSansSymbols2", "NotoColorEmoji"];
         public static void InitFallbackFonts()
         {
-            Stream fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricPlus.Fonts.fallbackFont");
+            Stream fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("LyricsPlus.Fonts.fallbackFont");
             AssetBundle bundle = AssetBundle.LoadFromStream(fontStream);
             if (bundle == null)
             {

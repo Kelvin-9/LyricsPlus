@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 
-namespace LyricPlus
+namespace LyricsPlus
 {
     internal class TriggerFileParser
     {
@@ -123,6 +123,9 @@ namespace LyricPlus
                     break;
                 case "RELATIVEROTATE":
                     ParseRelativeROTATE(tokens);
+                    break;
+                case "RESET":
+                    ParseRESET(tokens);
                     break;
                 case "REPEAT":
                     ParseREPEAT(tokens, lineNum);
@@ -610,6 +613,70 @@ namespace LyricPlus
             ));
         }
 
+        /// - RESET [LUTindex] [time]
+        ///     Resets all lut values to default. This includes color, offset, rotation and scale.
+        static readonly string resetUsage = "RESET \"LUTentry\" [time]";
+        void ParseRESET(string[] tokens)
+        {
+            if (tokens.Length < 3)
+            {
+                Debug.LogError($"Not enough tokens in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {resetUsage}");
+                return;
+            }
+
+            string LUTindex = tokens[1];
+            string LUTkey = $"LUT_{LUTindex}";
+            if (!colorKeys.ContainsKey(LUTkey))
+            {
+                Debug.LogError($"LUT key '{LUTkey}' was used before being declared!\nDeclare it at the start of the file with {lutUsage}");
+                return;
+            }
+
+            float? time = ParseTime(tokens[2]);
+            if (time == null)
+            {
+                Debug.LogError($"Could not parse time variable in command:\n{string.Join(' ', tokens)}");
+                Debug.LogError($"Usage:\n   {resetUsage}");
+                return;
+            }
+
+            Color32 LUTfrom = colorKeys[LUTkey];
+            if (!colorTriggers.ContainsKey(LUTfrom))
+            {
+                colorTriggers[LUTfrom] = [];
+            }
+            if (!offsetTriggers.ContainsKey(LUTfrom))
+            {
+                offsetTriggers[LUTfrom] = [];
+            }
+            if (!scaleTriggers.ContainsKey(LUTfrom))
+            {
+                scaleTriggers[LUTfrom] = [];
+            }
+            if (!rotateTriggers.ContainsKey(LUTfrom))
+            {
+                rotateTriggers[LUTfrom] = [];
+            }
+
+            colorTriggers[LUTfrom].Add(new Trigger<Color>(
+                time.Value,
+                new Color(1, 1, 1, 1)
+            ));
+            offsetTriggers[LUTfrom].Add(new Trigger<Vector4>(
+                time.Value,
+                new Vector4(0, 0, 0, 0)
+            ));
+            scaleTriggers[LUTfrom].Add(new Trigger<Vector4>(
+                time.Value,
+                new Vector4(1, 1, 1, 0)
+            ));
+            rotateTriggers[LUTfrom].Add(new Trigger<Vector5>(
+                time.Value,
+                new Vector5(0, 0, 1, 0, 0)
+            ));
+        }
+
 
         int repeatDepth = 0;
         readonly List<int> repeatCounts = [];
@@ -683,8 +750,6 @@ namespace LyricPlus
                 Debug.LogError($"FUNCTION {tokens[1]} was does not have name defined!");
                 Debug.LogError($"Usage:\n{functionUsage}");
             }
-
-            int functionPos = lineNum;
 
             // Move pointer forward until END
             int depth = 0;

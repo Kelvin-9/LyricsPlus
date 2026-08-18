@@ -104,3 +104,7 @@ ENDFUNCTION</b>
 
 <b>CALL [functionName] [time]</b>
 - Note that infinitly recursive function calls will be ignored
+<br><br>
+
+<b>RESET "LUTentry" [time]</b>
+- Sets color, offset, rotation and scale to default values. These are #FFFFFF, (0,0,0), default rotation, and (1,1,1) respectively.

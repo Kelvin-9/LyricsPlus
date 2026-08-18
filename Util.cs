@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 
-namespace LyricPlus
+namespace LyricsPlus
 {
     public static class Util
     {

@@ -9,7 +9,7 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 
-namespace LyricPlus
+namespace LyricsPlus
 {
     [HarmonyPatch]
     public class Patches
@@ -18,7 +18,7 @@ namespace LyricPlus
         [HarmonyPostfix]
         internal static void CustomTextMeshProHelper_OnEnabledPostfix(CustomTextMeshProHelper __instance)
         {
-            if (!ConfigManager.config.enableLyricPlus) return;
+            if (!ConfigManager.config.enableLyricsPlus) return;
 
             bool isLyricsText = __instance.parentText.transform.parent?.name.Contains("BackgroundLyric(Clone)(Clone)") ?? false;
             if (!isLyricsText) return;
@@ -122,7 +122,7 @@ namespace LyricPlus
         [HarmonyPrefix]
         internal static void SerializedLyricData_BuildSyllablesPrefix(ref string ___fullLyricsString)
         {
-            if (!ConfigManager.config.enableLyricPlus) return;
+            if (!ConfigManager.config.enableLyricsPlus) return;
 
             foreach (var pair in LyricTriggers.LUTKeys)
             {
