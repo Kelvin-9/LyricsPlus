@@ -30,7 +30,7 @@ Extra spaces between variables are fine. All commands and LUT keys are case inse
 
 ### COMMANDS
 <b>LUT "LUTentry" "#color"</b>
-- Creates a lookup table entry named "LUTentry" for color [#color]
+- Creates a lookup table entry named "LUTentry" for color "#color"
 - It is recommended to use colors that you are not going to use but will still look good for non-mod users, like reserving #01FFFF, #02FFFF etc to look up table keys
 - Note that the lyric editor will automatically replace any instance of "LUTentry" to the respective "#color"
 <i>
