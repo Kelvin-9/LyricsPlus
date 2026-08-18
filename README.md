@@ -1,5 +1,3 @@
-# Lyric+
-
 ## Features
 -  Working color tags
     -  To get color tags working, you need to first embed the shader parameters in the quick mod menu. This is for backwards compatibility so that unmodded charts look the same as before.
