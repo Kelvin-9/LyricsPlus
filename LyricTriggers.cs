@@ -25,9 +25,9 @@ namespace LyricsPlus
             ClearAll();
             if (!EmbeddedDataManager.HasEmbeddedData) return;
 
-            LUTKeys = data.colorKeys;
             foreach(var pair in data.colorKeys)
             {
+                LUTKeys.Add(pair.Key, pair.Value);
                 LUTBaseKeys.Add(pair.Key, pair.Value);
             }
             var colorTriggers = data.colorTriggers ?? [];
@@ -105,9 +105,9 @@ namespace LyricsPlus
 
             hasTriggers = colorTriggers.Count + setTriggers.Count + offsetTriggers.Count + scaleTriggers.Count + rotateTriggers.Count > 0;
 
-            LUTKeys = colorKeys;
             foreach (var pair in colorKeys)
             {
+                LUTKeys.Add(pair.Key, pair.Value);
                 LUTBaseKeys.Add(pair.Key, pair.Value);
             }
             LyricTriggers.colorTriggers  = colorTriggers;

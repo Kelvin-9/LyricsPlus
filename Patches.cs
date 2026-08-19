@@ -226,7 +226,7 @@ namespace LyricsPlus
                     Vector5 rotInfo = data.lut.rotation;
                     Vector3 rotAxisDir = new(rotInfo.x, rotInfo.y, rotInfo.z);
 
-                    int rotPivotIndex = Mathf.Clamp(rotInfo.v < 0 ? -(int)rotInfo.v : rotInfo.v == 0 ? i : (int)rotInfo.v - 1, 0, charCount - 1);
+                    int rotPivotIndex = Mathf.Clamp(rotInfo.v < 0 ? -(int)rotInfo.v - 1 : rotInfo.v == 0 ? i : (int)rotInfo.v - 1, 0, charCount - 1);
                     ref CharacterData rotPivotData = ref charData[rotPivotIndex];
                     ref TMP_CharacterInfo rotPivotChar = ref textInfo.characterInfo[rotPivotIndex];
 
@@ -252,10 +252,10 @@ namespace LyricsPlus
 
                     // LUT for scale
                     Vector4 scaleInfo = data.lut.scale;
-                    int scalePivotIndex = Mathf.Clamp(scaleInfo.w < 0 ? -(int)scaleInfo.w : scaleInfo.w == 0 ? i : (int)scaleInfo.w - 1, 0, charCount - 1);
+                    int scalePivotIndex = Mathf.Clamp(scaleInfo.w < 0 ? -(int)scaleInfo.w - 1 : scaleInfo.w == 0 ? i : (int)scaleInfo.w - 1, 0, charCount - 1);
 
                     float scaleMult = scaleInfo.w >= 0 ? 1 : 1 + Mathf.Abs(i - scalePivotIndex);
-                    Vector3 scale = new(scaleInfo.x * scaleMult, scaleInfo.y * scaleMult, scaleInfo.z * scaleMult);
+                    Vector3 scale = Vector3.one + (new Vector3(scaleInfo.x, scaleInfo.y, scaleInfo.z) - Vector3.one) * scaleMult;
 
                     ref CharacterData scalePivotData = ref charData[scalePivotIndex];
                     ref TMP_CharacterInfo scalePivotChar = ref textInfo.characterInfo[scalePivotIndex];
