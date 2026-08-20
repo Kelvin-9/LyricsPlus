@@ -17,7 +17,7 @@ namespace LyricsPlus
     {
         const string modGUID = "LyricsPlus";
         private const string modName = "LyricsPlus";
-        private const string modVersion = "1.0.0";
+        private const string modVersion = "1.0.2";
 
         private readonly Harmony harmony = new(modGUID);
         internal static Shader textShader;

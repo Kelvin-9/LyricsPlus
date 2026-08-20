@@ -357,10 +357,10 @@ namespace LyricsPlus
         // Truncate timeline text so that big text doesn't cover the entire editor
         [HarmonyPatch(typeof(DetailedTimelineTextBar), "AddText")]
         [HarmonyPostfix]
-        static void DetailedTimelineTextBar_AddTextPostfix(ref List<DetailedTimelineText> ___usedText)
+        static void DetailedTimelineTextBar_AddTextPostfix(DetailedTimelineTextBar __instance, ref List<DetailedTimelineText> ___usedText)
         {
             if (___usedText == null || ___usedText.Count <= 0) return;
-
+            if (__instance.gameObject.name.Contains("Clip", StringComparison.OrdinalIgnoreCase)) return;
             var lastTextElement = ___usedText[^1];
 
             if (lastTextElement == null || lastTextElement.Text == null) return;
@@ -370,8 +370,8 @@ namespace LyricsPlus
             lastTextElement.Text.overflowMode = TextOverflowModes.Ellipsis;
 
             var rect = lastTextElement.RectTransform;
-            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 200f);
-            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 80f);
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 300f);
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 300f);
         }
 
         // Patch spincore to allow unregistering events because the store keys are not the same for every chart
