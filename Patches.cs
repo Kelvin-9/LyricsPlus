@@ -39,6 +39,7 @@ namespace LyricsPlus
         internal static void PreloadCharacters(TMP_FontAsset font, PlayableLyricData lyrics)
         {
             if (font == null) return;
+            if (lyrics == null) return;
 
             StringBuilder sb = new();
             foreach (var phrase in lyrics.Phrases)
@@ -47,7 +48,7 @@ namespace LyricsPlus
             }
             string str = sb.ToString();
 
-            foreach(var fallback in font.fallbackFontAssetTable)
+            foreach (var fallback in font.fallbackFontAssetTable)
             {
                 PreloadForFont(str, fallback);
             }
@@ -78,11 +79,6 @@ namespace LyricsPlus
         [HarmonyPrefix]
         internal static void BackgroundLyricLineDisplay_SetPhrasePrefix(BackgroundLyricLineDisplay __instance)
         {
-            if (!hasPreloadedLyricGlyphs)
-            {
-                PreloadCharacters(Plugin.mainLyricFont, __instance.GetLyrics());
-            }
-
             BackgroundLyricLineDisplay.AnimTimingSettings anim = __instance.animTimingSettings;
             if (!_assignedDefault)
             {
@@ -116,6 +112,16 @@ namespace LyricsPlus
             }
         }
 
+        [HarmonyPatch(typeof(BackgroundBehaviour), "ActivateBehaviour")]
+        [HarmonyPrefix]
+        internal static void BackgroundBehaviour_ActivateBehaviourPrefix(BackgroundBehaviour __instance)
+        {
+            if (!hasPreloadedLyricGlyphs)
+            {
+                PreloadCharacters(Plugin.mainLyricFont, __instance.GetLyrics());
+            }
+        }
+
 
         // Preprocess away LUT keys to their actual color
         [HarmonyPatch(typeof(SerializedLyricData), "BuildSyllables")]
@@ -123,6 +129,7 @@ namespace LyricsPlus
         internal static void SerializedLyricData_BuildSyllablesPrefix(ref string ___fullLyricsString)
         {
             if (!ConfigManager.config.enableLyricsPlus) return;
+            if (LyricTriggers.LUTBaseKeys == null) return;
 
             foreach (var pair in LyricTriggers.LUTKeys)
             {
@@ -348,6 +355,12 @@ namespace LyricsPlus
             else
             {
                 Plugin.RemoveFallbackFonts();
+            }
+
+            if (FontAssetSystem.Instance != null && Plugin.mainLyricFont == null)
+            {
+                Plugin.mainLyricFont = FontAssetSystem.Instance.GetFontForName("Montserrat-ExtraBold SDF", false).font;
+                Plugin.GetTextMaterial(Plugin.mainLyricFont);
             }
 
             hasPreloadedLyricGlyphs = false;

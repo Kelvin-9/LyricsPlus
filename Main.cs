@@ -113,6 +113,7 @@ namespace LyricsPlus
             Material? chartMat = EmbeddedDataManager.GetChartLyricMaterial(font);
             if (chartMat != null)
             {
+                Debug.Log("Chart mat get");
                 return chartMat;
             }
 
