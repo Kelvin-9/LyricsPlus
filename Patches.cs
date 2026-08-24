@@ -341,6 +341,15 @@ namespace LyricsPlus
             // Load chart's embedded data
             bool loaded = EmbeddedDataManager.Load(trackData);
             ConfigManager.quickModGroup?.GameObject.SetActive(loaded);
+            if (EmbeddedDataManager.lyricConfig != null)
+            {
+                Plugin.InsertFallbackFonts();
+            }
+            else
+            {
+                Plugin.RemoveFallbackFonts();
+            }
+
             hasPreloadedLyricGlyphs = false;
         }
 
@@ -364,6 +373,7 @@ namespace LyricsPlus
             var lastTextElement = ___usedText[^1];
 
             if (lastTextElement == null || lastTextElement.Text == null) return;
+            if (__instance.gameObject.name != "Lyrics") return;
 
             lastTextElement.Text.enableAutoSizing = false;
             lastTextElement.Text.autoSizeTextContainer = false;

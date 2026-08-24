@@ -82,10 +82,25 @@ namespace LyricsPlus
                 }
 
                 fallbackFonts.Add(font);
-                TMP_Settings.fallbackFontAssets.Add(font);
             }
 
             Debug.Log("Fallback font added");
+        }
+
+        public static void InsertFallbackFonts()
+        {
+            foreach (var font in fallbackFonts)
+            {
+                TMP_Settings.fallbackFontAssets.Add(font);
+            }
+        }
+
+        public static void RemoveFallbackFonts()
+        {
+            foreach (var font in fallbackFonts)
+            {
+                TMP_Settings.fallbackFontAssets.Remove(font);
+            }
         }
 
         static Dictionary<TMP_FontAsset, Material> defaultMatMap = [];
