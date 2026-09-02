@@ -129,7 +129,8 @@ namespace LyricsPlus
         internal static void SerializedLyricData_BuildSyllablesPrefix(ref string ___fullLyricsString)
         {
             if (!ConfigManager.config.enableLyricsPlus) return;
-            if (LyricTriggers.LUTBaseKeys == null) return;
+            if (LyricTriggers.LUTKeys == null) return;
+            if (___fullLyricsString == null) return;
 
             foreach (var pair in LyricTriggers.LUTKeys)
             {
