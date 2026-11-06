@@ -342,9 +342,9 @@ namespace LyricsPlus
 
         // On new chart selected
         static bool hasPreloadedLyricGlyphs = false;
-        [HarmonyPatch(typeof(SplineTrackData.DataToGenerate), MethodType.Constructor, typeof(PlayableTrackData))]
+        [HarmonyPatch(typeof(SplineTrackData.DataToGenerate), MethodType.Constructor, [typeof(PlayableTrackData), typeof(int?)])]
         [HarmonyPostfix]
-        private static void TrackConstructor(PlayableTrackData trackData)
+        private static void TrackConstructor(PlayableTrackData trackData, int? trackSpeedSetting = null)
         {
             // Load chart's embedded data
             bool loaded = EmbeddedDataManager.Load(trackData);
