@@ -8,13 +8,13 @@
 
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>G:\Steam\steamapps\common\Spin Rhythm\BepInEx\core\0Harmony.dll</HintPath>
+      <HintPath>C:\Users\kelvi\AppData\Roaming\SRXD Mod Manager\data\BepInEx\core\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="BepInEx">
-      <HintPath>G:\Steam\steamapps\common\Spin Rhythm\BepInEx\core\BepInEx.dll</HintPath>
+      <HintPath>C:\Users\kelvi\AppData\Roaming\SRXD Mod Manager\data\BepInEx\core\BepInEx.dll</HintPath>
     </Reference>
     <Reference Include="DOTween">
       <HintPath>..\..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\DOTween.dll</HintPath>
@@ -26,7 +26,7 @@
       <HintPath>..\..\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\Spin.Game.TrackPlaybackSystem.dll</HintPath>
     </Reference>
     <Reference Include="SpinCore">
-      <HintPath>C:\Users\kelvi\AppData\Roaming\SRXD Mod Manager\data\BepInEx\plugins\e175438534a4f36f149d7abfd21ee39f69752a3f8159ae999fe869aaa5318579\SpinCore.dll</HintPath>
+      <HintPath>C:\Users\kelvi\AppData\Roaming\SRXD Mod Manager\data\BepInEx\plugins\Raoul1808_SpinCore\SpinCore.dll</HintPath>
     </Reference>
     <Reference Include="SSD.Game">
       <HintPath>G:\Steam\steamapps\common\Spin Rhythm\SpinRhythm_Data\Managed\SSD.Game.dll</HintPath>
